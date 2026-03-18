@@ -1,24 +1,69 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
+import api from '../api/axios';
 
-const stats = [
-  { label: 'Total Events', value: '0', icon: '📅', color: 'bg-blue-50 text-blue-700' },
-  { label: 'Total Members', value: '0', icon: '👥', color: 'bg-green-50 text-green-700' },
-  { label: 'Active Tasks', value: '0', icon: '✅', color: 'bg-purple-50 text-purple-700' },
-  { label: 'Budget Overview', value: '$0', icon: '💰', color: 'bg-yellow-50 text-yellow-700' },
-];
+interface AssignedMember {
+  userId: { _id: string; name: string };
+  role: string;
+}
+
+interface Event {
+  _id: string;
+  title: string;
+  date: string;
+  location?: string;
+  category: string;
+  status: 'draft' | 'published' | 'cancelled';
+  assignedCommittee: AssignedMember[];
+  createdBy: { _id: string; name: string };
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-600',
+  published: 'bg-green-100 text-green-700',
+  cancelled: 'bg-red-100 text-red-600',
+};
 
 const sidebarLinks = [
-  { icon: '🏠', label: 'Dashboard', active: true },
-  { icon: '📅', label: 'Events', active: false },
-  { icon: '✅', label: 'Tasks', active: false },
-  { icon: '💰', label: 'Budget', active: false },
-  { icon: '👥', label: 'Members', active: false },
-  { icon: '🗂️', label: 'Safety Files', active: false },
+  { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
+  { icon: '📅', label: 'Events', path: '/president/events' },
+  { icon: '✅', label: 'Tasks', path: null },
+  { icon: '💰', label: 'Budget', path: null },
+  { icon: '👥', label: 'Members', path: null },
+  { icon: '🗂️', label: 'Safety Files', path: null },
 ];
 
 export default function PresidentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
+
+  useEffect(() => {
+    api.get('/events')
+      .then(res => setEvents(res.data))
+      .catch(() => {})
+      .finally(() => setLoadingEvents(false));
+  }, []);
+
+  const handleDeleteEvent = async (id: string) => {
+    if (!confirm('Delete this event?')) return;
+    try {
+      await api.delete(`/events/${id}`);
+      setEvents(prev => prev.filter(e => e._id !== id));
+    } catch {
+      alert('Failed to delete event.');
+    }
+  };
+
+  const stats = [
+    { label: 'Total Events', value: String(events.length), icon: '📅', color: 'bg-blue-50 text-blue-700' },
+    { label: 'Total Members', value: '0', icon: '👥', color: 'bg-green-50 text-green-700' },
+    { label: 'Active Tasks', value: '0', icon: '✅', color: 'bg-purple-50 text-purple-700' },
+    { label: 'Budget Overview', value: '$0', icon: '💰', color: 'bg-yellow-50 text-yellow-700' },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -33,8 +78,9 @@ export default function PresidentDashboard() {
                 <a
                   key={link.label}
                   href="#"
+                  onClick={e => { e.preventDefault(); if (link.path) navigate(link.path); }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
-                    link.active
+                    link.label === 'Dashboard'
                       ? 'bg-yellow-50 text-yellow-800 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
@@ -74,22 +120,63 @@ export default function PresidentDashboard() {
             ))}
           </div>
 
-          {/* Recent Events */}
+          {/* Events */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Recent Events</h2>
-              <button className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+              <button
+                onClick={() => navigate('/president/events/create')}
+                className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
                 + Create New Event
               </button>
             </div>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="text-5xl mb-4">📅</div>
-              <p className="text-gray-500 font-medium">No events created yet</p>
-              <p className="text-gray-400 text-sm mt-1">Create your first event to get started.</p>
-              <button className="mt-4 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition font-medium text-sm">
-                Create New Event
-              </button>
-            </div>
+
+            {loadingEvents ? (
+              <div className="text-center py-8 text-gray-400 text-sm">Loading events...</div>
+            ) : events.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="text-5xl mb-4">📅</div>
+                <p className="text-gray-500 font-medium">No events created yet</p>
+                <p className="text-gray-400 text-sm mt-1">Create your first event to get started.</p>
+                <button
+                  onClick={() => navigate('/president/events/create')}
+                  className="mt-4 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                >
+                  Create New Event
+                </button>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {events.map(event => {
+                  const dateStr = new Date(event.date).toLocaleDateString('en-AU', {
+                    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                  });
+                  return (
+                    <div key={event._id} className="py-3 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-800 truncate">{event.title}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[event.status]}`}>
+                            {event.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          📅 {dateStr}{event.location ? ` · 📍 ${event.location}` : ''}
+                          {event.assignedCommittee.length > 0 && ` · 👥 ${event.assignedCommittee.length} assigned`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteEvent(event._id)}
+                        className="text-xs text-red-400 hover:text-red-600 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Team Overview */}

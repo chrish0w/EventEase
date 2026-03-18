@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +10,7 @@ const stats = [
 
 export default function CommitteeDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,6 +29,7 @@ export default function CommitteeDashboard() {
               </a>
               <a
                 href="#"
+                onClick={e => { e.preventDefault(); navigate('/committee/events'); }}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition"
               >
                 📅 Events
@@ -87,11 +90,25 @@ export default function CommitteeDashboard() {
 
           {/* Events I'm Involved In */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Events I'm Involved In</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">Events I'm Involved In</h2>
+              <button
+                onClick={() => navigate('/committee/events')}
+                className="text-sm text-purple-600 hover:underline font-medium"
+              >
+                View All →
+              </button>
+            </div>
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="text-5xl mb-4">📅</div>
               <p className="text-gray-500 font-medium">No events yet</p>
               <p className="text-gray-400 text-sm mt-1">Events you're assigned to will show up here.</p>
+              <button
+                onClick={() => navigate('/committee/events/create')}
+                className="mt-4 bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition font-medium text-sm"
+              >
+                Create an Event
+              </button>
             </div>
           </div>
         </main>
