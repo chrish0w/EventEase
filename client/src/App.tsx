@@ -9,19 +9,22 @@ import PresidentDashboard from './pages/PresidentDashboard';
 import CreateEventPage from './pages/CreateEventPage';
 import CommitteeEventsPage from './pages/CommitteeEventsPage';
 import PresidentEventsPage from './pages/PresidentEventsPage';
+import ClubSelectPage from './pages/ClubSelectPage';
+import JoinClubPage from './pages/JoinClubPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
-  const { token, user } = useAuth();
+  const { token, user, selectedClub } = useAuth();
   if (!token) return <Navigate to="/login" />;
-  if (requiredRole && user?.role !== requiredRole) return <Navigate to="/dashboard" />;
+  if (requiredRole === 'admin' && user?.role !== 'admin') return <Navigate to="/club-select" />;
+  if (requiredRole && requiredRole !== 'admin' && selectedClub?.role !== requiredRole) return <Navigate to="/club-select" />;
   return <>{children}</>;
 }
 
 function RoleDashboard() {
   const { user } = useAuth();
-  if (user?.role === 'president') return <Navigate to="/president/dashboard" />;
-  if (user?.role === 'committee') return <Navigate to="/committee/dashboard" />;
-  return <Navigate to="/user/dashboard" />;
+  if (user?.role === 'admin') return <Navigate to="/admin/dashboard" />;
+  return <Navigate to="/club-select" />;
 }
 
 export default function App() {
@@ -36,6 +39,9 @@ export default function App() {
           <Route path="/user/dashboard" element={<PrivateRoute requiredRole="user"><UserDashboard /></PrivateRoute>} />
           <Route path="/committee/dashboard" element={<PrivateRoute requiredRole="committee"><CommitteeDashboard /></PrivateRoute>} />
           <Route path="/president/dashboard" element={<PrivateRoute requiredRole="president"><PresidentDashboard /></PrivateRoute>} />
+          <Route path="/club-select" element={<PrivateRoute><ClubSelectPage /></PrivateRoute>} />
+          <Route path="/clubs/join" element={<PrivateRoute><JoinClubPage /></PrivateRoute>} />
+          <Route path="/admin/dashboard" element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
           <Route path="/president/events" element={<PrivateRoute requiredRole="president"><PresidentEventsPage /></PrivateRoute>} />
           <Route path="/president/events/create" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />
