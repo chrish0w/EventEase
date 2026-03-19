@@ -45,10 +45,27 @@ JWT_SECRET=eventease_secret_key_2026
 PORT=5000
 ```
 
+## Seed Admin Account
+
+Run this once after starting the backend to create the Monash admin account:
+
+```bash
+cd server
+node scripts/createAdmin.js
+```
+
+| Field | Value |
+|-------|-------|
+| Email | `admin@monash.edu` |
+| Password | `Admin@2026` |
+
+The admin account can create clubs and assign presidents. It only needs to be created once.
+
 ## Roles
 
 | Role | Description |
 |------|-------------|
-| `president` | Creates and manages events, assigns committee members |
-| `committee` | Manages assigned events with role-specific responsibilities |
-| `user` | Views and RSVPs to published events |
+| `admin` | Monash administrator — creates clubs and assigns presidents |
+| `president` | Assigned by admin — manages a club, approves join requests, assigns committee roles |
+| `committee` | Assigned by president — manages assigned events with role-specific responsibilities |
+| `user` | Self-registered — applies to join clubs and RSVPs to events |
