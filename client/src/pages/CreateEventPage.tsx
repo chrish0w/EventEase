@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -32,8 +32,10 @@ const CATEGORIES = [
 ];
 
 export default function CreateEventPage() {
-  const { user } = useAuth();
+  const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
+  const { id: eventId } = useParams<{ id?: string }>();
+  const isEdit = !!eventId;
 
   const [form, setForm] = useState({
     title: '',
@@ -50,15 +52,41 @@ export default function CreateEventPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const isPresident = user?.role === 'president';
+  const isPresident = selectedClub?.role === 'president';
+
+  // Load existing event data when editing
+  useEffect(() => {
+    if (!isEdit || !eventId) return;
+    api.get(`/events/${eventId}`)
+      .then(res => {
+        const e = res.data;
+        setForm({
+          title: e.title ?? '',
+          description: e.description ?? '',
+          date: e.date ? new Date(e.date).toISOString().slice(0, 16) : '',
+          location: e.location ?? '',
+          category: e.category ?? 'other',
+          status: e.status ?? 'draft',
+          capacity: e.capacity ? String(e.capacity) : '',
+          rsvpDeadline: e.rsvpDeadline ? e.rsvpDeadline.slice(0, 10) : '',
+        });
+        if (e.assignedCommittee) {
+          setAssignedCommittee(e.assignedCommittee.map((a: { userId: { _id: string }; role: string }) => ({
+            userId: a.userId._id,
+            role: a.role,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, [isEdit, eventId]);
 
   useEffect(() => {
-    if (isPresident) {
-      api.get('/events/committee-members')
+    if (isPresident && selectedClub?.clubId) {
+      api.get(`/events/committee-members?clubId=${selectedClub.clubId}`)
         .then(res => setCommitteeMembers(res.data))
         .catch(() => {});
     }
-  }, [isPresident]);
+  }, [isPresident, selectedClub]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -83,14 +111,19 @@ export default function CreateEventPage() {
     try {
       const payload: Record<string, unknown> = {
         ...form,
+        clubId: selectedClub?.clubId,
         capacity: form.capacity ? Number(form.capacity) : undefined,
         rsvpDeadline: form.rsvpDeadline || undefined,
       };
       if (isPresident) {
         payload.assignedCommittee = assignedCommittee.filter(a => a.userId);
       }
-      await api.post('/events', payload);
-      navigate(isPresident ? '/president/dashboard' : '/committee/events');
+      if (isEdit && eventId) {
+        await api.put(`/events/${eventId}`, payload);
+      } else {
+        await api.post('/events', payload);
+      }
+      navigate(isPresident ? '/president/events' : '/committee/events');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setError(msg || 'Failed to create event');
@@ -113,7 +146,7 @@ export default function CreateEventPage() {
           >
             ← Back
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">Create New Event</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{isEdit ? 'Edit Event' : 'Create New Event'}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -316,7 +349,7 @@ export default function CreateEventPage() {
               disabled={loading}
               className="px-6 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition disabled:opacity-50"
             >
-              {loading ? 'Creating...' : 'Create Event'}
+              {loading ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Event')}
             </button>
           </div>
         </form>

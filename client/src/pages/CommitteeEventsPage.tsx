@@ -176,17 +176,18 @@ function EventCard({ event, myRole }: { event: Event; myRole: string }) {
 }
 
 export default function CommitteeEventsPage() {
-  const { user } = useAuth();
+  const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/events')
+    if (!selectedClub?.clubId) return;
+    api.get(`/events?clubId=${selectedClub.clubId}`)
       .then(res => setEvents(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedClub]);
 
   const getMyRole = (event: Event): string => {
     const assignment = event.assignedCommittee.find(a => a.userId._id === user?.id);

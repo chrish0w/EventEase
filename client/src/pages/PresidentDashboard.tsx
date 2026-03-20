@@ -35,18 +35,43 @@ const sidebarLinks = [
   { icon: '🗂️', label: 'Safety Files', path: null },
 ];
 
+interface JoinRequest {
+  _id: string;
+  userId: { _id: string; name: string; email: string; studentId?: string };
+  message?: string;
+}
+
 export default function PresidentDashboard() {
-  const { user } = useAuth();
+  const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
 
   useEffect(() => {
-    api.get('/events')
+    if (!selectedClub?.clubId) return;
+    api.get(`/events?clubId=${selectedClub.clubId}`)
       .then(res => setEvents(res.data))
       .catch(() => {})
       .finally(() => setLoadingEvents(false));
-  }, []);
+  }, [selectedClub]);
+
+  useEffect(() => {
+    if (!selectedClub?.clubId) return;
+    api.get(`/clubs/${selectedClub.clubId}/requests`)
+      .then(res => setJoinRequests(res.data))
+      .catch(() => {});
+  }, [selectedClub]);
+
+  const handleRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    if (!selectedClub?.clubId) return;
+    try {
+      await api.put(`/clubs/${selectedClub.clubId}/requests/${requestId}`, { status });
+      setJoinRequests(prev => prev.filter(r => r._id !== requestId));
+    } catch {
+      alert('Failed to update request.');
+    }
+  };
 
   const handleDeleteEvent = async (id: string) => {
     if (!confirm('Delete this event?')) return;
@@ -175,6 +200,51 @@ export default function PresidentDashboard() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          {/* Join Requests */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Join Requests
+                {joinRequests.length > 0 && (
+                  <span className="ml-2 text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                    {joinRequests.length}
+                  </span>
+                )}
+              </h2>
+            </div>
+            {joinRequests.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400 text-sm">No pending join requests.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {joinRequests.map(req => (
+                  <div key={req._id} className="py-3 flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">{req.userId.name}</p>
+                      <p className="text-xs text-gray-400">{req.userId.email}{req.userId.studentId ? ` · ${req.userId.studentId}` : ''}</p>
+                      {req.message && <p className="text-xs text-gray-500 mt-0.5 italic">"{req.message}"</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleRequest(req._id, 'approved')}
+                        className="text-xs bg-green-100 text-green-700 hover:bg-green-200 font-medium px-3 py-1.5 rounded-lg transition"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleRequest(req._id, 'rejected')}
+                        className="text-xs bg-red-100 text-red-600 hover:bg-red-200 font-medium px-3 py-1.5 rounded-lg transition"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

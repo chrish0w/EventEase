@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 interface AssignedMember {
@@ -50,12 +51,15 @@ export default function PresidentEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const { selectedClub } = useAuth();
+
   useEffect(() => {
-    api.get('/events')
+    if (!selectedClub?.clubId) return;
+    api.get(`/events?clubId=${selectedClub.clubId}`)
       .then(res => setEvents(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedClub]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this event?')) return;
@@ -167,12 +171,20 @@ export default function PresidentEventsPage() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleDelete(event._id)}
-                        className="text-xs text-red-400 hover:text-red-600 transition shrink-0"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => navigate(`/president/events/${event._id}/edit`)}
+                          className="text-xs text-blue-500 hover:text-blue-700 transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(event._id)}
+                          className="text-xs text-red-400 hover:text-red-600 transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

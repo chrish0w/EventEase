@@ -44,6 +44,7 @@ export default function App() {
           <Route path="/admin/dashboard" element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
           <Route path="/president/events" element={<PrivateRoute requiredRole="president"><PresidentEventsPage /></PrivateRoute>} />
           <Route path="/president/events/create" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
+          <Route path="/president/events/:id/edit" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />
           <Route path="/committee/events/create" element={<PrivateRoute requiredRole="committee"><CreateEventPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />

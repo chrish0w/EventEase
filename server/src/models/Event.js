@@ -28,7 +28,8 @@ const eventSchema = new mongoose.Schema({
   rsvpDeadline: Date,
   requiresSafetyDisclaimer: { type: Boolean, default: false },
   assignedCommittee: [committeeAssignmentSchema],
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', required: true }
 }, { timestamps: true });
 
 eventSchema.pre('save', function(next) {
