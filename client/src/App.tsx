@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import CommitteeDashboard from './pages/CommitteeDashboard';
 import PresidentDashboard from './pages/PresidentDashboard';
+import BudgetPage from './pages/BudgetPage';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user } = useAuth();
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/user/dashboard" element={<PrivateRoute requiredRole="user"><UserDashboard /></PrivateRoute>} />
           <Route path="/committee/dashboard" element={<PrivateRoute requiredRole="committee"><CommitteeDashboard /></PrivateRoute>} />
           <Route path="/president/dashboard" element={<PrivateRoute requiredRole="president"><PresidentDashboard /></PrivateRoute>} />
+          <Route path="/president/budget" element={<PrivateRoute requiredRole="president"><BudgetPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
