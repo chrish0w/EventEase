@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +10,7 @@ const stats = [
 
 export default function CommitteeDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,8 +34,9 @@ export default function CommitteeDashboard() {
                 📅 Events
               </a>
               <a
-                href="#"
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition"
+                href="/committee/tasks"
+                onClick={(e) => { e.preventDefault(); navigate('/committee/tasks'); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition cursor-pointer"
               >
                 ✅ Tasks
               </a>
