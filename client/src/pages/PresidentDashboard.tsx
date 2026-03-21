@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,16 +10,17 @@ const stats = [
 ];
 
 const sidebarLinks = [
-  { icon: '🏠', label: 'Dashboard', active: true },
-  { icon: '📅', label: 'Events', active: false },
-  { icon: '✅', label: 'Tasks', active: false },
-  { icon: '💰', label: 'Budget', active: false },
-  { icon: '👥', label: 'Members', active: false },
-  { icon: '🗂️', label: 'Safety Files', active: false },
+  { icon: '🏠', label: 'Dashboard',    path: '/president/dashboard', active: true },
+  { icon: '📅', label: 'Events',       path: '#',                    active: false },
+  { icon: '✅', label: 'Tasks',        path: '#',                    active: false },
+  { icon: '💰', label: 'Budget',       path: '#',                    active: false },
+  { icon: '👥', label: 'Members',      path: '/president/members',   active: false },
+  { icon: '🗂️', label: 'Safety Files', path: '#',                   active: false },
 ];
 
 export default function PresidentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -32,8 +34,9 @@ export default function PresidentDashboard() {
               {sidebarLinks.map((link) => (
                 <a
                   key={link.label}
-                  href="#"
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
+                  href={link.path}
+                  onClick={link.path !== '#' ? (e) => { e.preventDefault(); navigate(link.path); } : undefined}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition cursor-pointer ${
                     link.active
                       ? 'bg-yellow-50 text-yellow-800 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
@@ -96,7 +99,10 @@ export default function PresidentDashboard() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Team Overview</h2>
-              <button className="text-sm text-blue-600 hover:underline font-medium">
+              <button
+                onClick={() => navigate('/president/members')}
+                className="text-sm text-blue-600 hover:underline font-medium"
+              >
                 Manage Members →
               </button>
             </div>
