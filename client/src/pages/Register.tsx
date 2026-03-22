@@ -3,12 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
-const roleLabels: Record<string, string> = {
-  user: 'Member',
-  committee: 'Committee Member',
-  president: 'Club President',
-};
-
 export default function Register() {
   const [form, setForm] = useState({
     name: '',
@@ -26,9 +20,7 @@ export default function Register() {
     try {
       const { data } = await api.post('/auth/register', form);
       login(data.token, data.user);
-      if (data.user.role === 'president') navigate('/president/dashboard');
-      else if (data.user.role === 'committee') navigate('/committee/dashboard');
-      else navigate('/user/dashboard');
+      navigate('/clubs/join');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
     }
@@ -85,18 +77,6 @@ export default function Register() {
               onChange={e => setForm({ ...form, password: e.target.value })}
               required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <select
-              className="w-full border rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              value={form.role}
-              onChange={e => setForm({ ...form, role: e.target.value })}
-            >
-              {Object.entries(roleLabels).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
           </div>
           <button
             className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 font-medium transition"

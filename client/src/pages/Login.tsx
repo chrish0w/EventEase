@@ -14,9 +14,8 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', form);
       login(data.token, data.user);
-      if (data.user.role === 'president') navigate('/president/dashboard');
-      else if (data.user.role === 'committee') navigate('/committee/dashboard');
-      else navigate('/user/dashboard');
+      if (data.user.role === 'admin') navigate('/admin/dashboard');
+      else navigate('/club-select');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
     }
