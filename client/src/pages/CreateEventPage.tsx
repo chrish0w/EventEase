@@ -32,7 +32,7 @@ const CATEGORIES = [
 ];
 
 export default function CreateEventPage() {
-  const { user, selectedClub } = useAuth();
+  const { selectedClub } = useAuth();
   const navigate = useNavigate();
   const { id: eventId } = useParams<{ id?: string }>();
   const isEdit = !!eventId;

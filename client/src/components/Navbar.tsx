@@ -13,6 +13,43 @@ const roleLabels: Record<string, string> = {
   user: 'Member',
 };
 
+const presidentNavLinks = [
+  { key: 'dashboard', label: 'Dashboard', path: '/president/dashboard' },
+  { key: 'events', label: 'Events', path: '/president/events' },
+  { key: 'budget', label: 'Budget', path: '/president/budget' },
+  { key: 'tasks', label: 'Tasks' },
+  { key: 'members', label: 'Members' },
+  { key: 'safety', label: 'Safety Files' },
+] as const satisfies ReadonlyArray<{ key: string; label: string; path?: string }>;
+
+export function PresidentNav({ active }: { active: 'dashboard' | 'events' | 'budget' }) {
+  const navigate = useNavigate();
+
+  return (
+    <aside className="w-56 shrink-0">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Navigation</p>
+        <nav className="space-y-1">
+          {presidentNavLinks.map((link) => (
+            <button
+              key={link.label}
+              type="button"
+              onClick={() => { if ('path' in link && link.path) navigate(link.path); }}
+              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
+                link.key === active
+                  ? 'bg-yellow-50 text-yellow-800 font-medium'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {link.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
