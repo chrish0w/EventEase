@@ -14,5 +14,7 @@ mongoose.connect(mongoUri)
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/events', require('./routes/events'));
+app.use('/api/clubs', require('./routes/clubs'));
 
 app.listen(port, () => console.log(`Server running on port ${port}`));
