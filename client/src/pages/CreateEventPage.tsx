@@ -43,7 +43,7 @@ export default function CreateEventPage() {
     date: '',
     location: '',
     category: 'other',
-    status: 'draft',
+    status: 'published',
     capacity: '',
     rsvpDeadline: '',
   });
