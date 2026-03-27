@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const Event = require('../models/Event');
+const Budget = require('../models/Budget');
 const ClubMembership = require('../models/ClubMembership');
 
 // Helper: get user's membership in a club
@@ -121,6 +122,7 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'President only' });
     }
     await Event.findByIdAndDelete(req.params.id);
+    await Budget.findOneAndDelete({ clubId: event.clubId, eventId: event._id });
     res.json({ message: 'Event deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -14,15 +14,14 @@ const roleLabels: Record<string, string> = {
 };
 
 const presidentNavLinks = [
-  { key: 'dashboard', label: 'Dashboard', path: '/president/dashboard' },
-  { key: 'events', label: 'Events', path: '/president/events' },
-  { key: 'budget', label: 'Budget', path: '/president/budget' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'members', label: 'Members' },
-  { key: 'safety', label: 'Safety Files' },
-] as const satisfies ReadonlyArray<{ key: string; label: string; path?: string }>;
+  { key: 'dashboard', label: 'Dashboard', icon: 'Home', path: '/president/dashboard' },
+  { key: 'events', label: 'Events', icon: 'Events', path: '/president/events' },
+  { key: 'tasks', label: 'Tasks', icon: 'Tasks' },
+  { key: 'members', label: 'Members', icon: 'Members' },
+  { key: 'safety', label: 'Safety Files', icon: 'Safety' },
+] as const satisfies ReadonlyArray<{ key: string; label: string; icon: string; path?: string }>;
 
-export function PresidentNav({ active }: { active: 'dashboard' | 'events' | 'budget' }) {
+export function PresidentNav({ active }: { active: 'dashboard' | 'events' }) {
   const navigate = useNavigate();
 
   return (
@@ -41,7 +40,7 @@ export function PresidentNav({ active }: { active: 'dashboard' | 'events' | 'bud
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              {link.label}
+              {link.icon} {link.label}
             </button>
           ))}
         </nav>
