@@ -12,7 +12,7 @@ export default function CommitteeDashboard() {
   const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
   const roleLabel = selectedClub?.committeeRole
-    ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1)
+    ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
     : 'Committee';
 
   return (
