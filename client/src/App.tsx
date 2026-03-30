@@ -12,6 +12,7 @@ import PresidentEventsPage from './pages/PresidentEventsPage';
 import ClubSelectPage from './pages/ClubSelectPage';
 import JoinClubPage from './pages/JoinClubPage';
 import AdminDashboard from './pages/AdminDashboard';
+import PresidentMembersPage from './pages/PresidentMembersPage';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user, selectedClub } = useAuth();
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/president/events/:id/edit" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />
           <Route path="/committee/events/create" element={<PrivateRoute requiredRole="committee"><CreateEventPage /></PrivateRoute>} />
+          <Route path="/president/members" element={<PrivateRoute requiredRole="president"><PresidentMembersPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

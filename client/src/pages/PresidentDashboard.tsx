@@ -31,7 +31,7 @@ const sidebarLinks = [
   { icon: '📅', label: 'Events', path: '/president/events' },
   { icon: '✅', label: 'Tasks', path: null },
   { icon: '💰', label: 'Budget', path: null },
-  { icon: '👥', label: 'Members', path: null },
+  { icon: '👥', label: 'Members', path: '/president/members' },
   { icon: '🗂️', label: 'Safety Files', path: null },
 ];
 
@@ -253,7 +253,10 @@ export default function PresidentDashboard() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Team Overview</h2>
-              <button className="text-sm text-blue-600 hover:underline font-medium">
+              <button
+                onClick={() => navigate('/president/members')}
+                className="text-sm text-blue-600 hover:underline font-medium"
+              >
                 Manage Members →
               </button>
             </div>
