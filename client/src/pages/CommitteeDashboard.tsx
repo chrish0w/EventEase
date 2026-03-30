@@ -9,8 +9,11 @@ const stats = [
 ];
 
 export default function CommitteeDashboard() {
-  const { user } = useAuth();
+  const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
+  const roleLabel = selectedClub?.committeeRole
+    ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1)
+    : 'Committee';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -56,11 +59,11 @@ export default function CommitteeDashboard() {
           <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-xl p-6 text-white mb-6 shadow">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold mb-1">Welcome, {user?.name}! 🎉</h1>
+                <h1 className="text-2xl font-bold mb-1">Welcome, {roleLabel} {user?.name}! 🎉</h1>
                 <p className="text-purple-100 text-sm">Manage your tasks and events from here.</p>
               </div>
               <span className="bg-white/20 border border-white/30 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                Committee
+                {roleLabel}
               </span>
             </div>
           </div>
