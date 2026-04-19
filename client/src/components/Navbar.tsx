@@ -14,13 +14,19 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, selectedClub } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  const clubRole = selectedClub?.role;
+  const badgeStyle = roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user;
+  const badgeLabel = clubRole === 'committee' && selectedClub?.committeeRole
+    ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
+    : roleLabels[clubRole || ''] || 'Member';
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
@@ -40,8 +46,8 @@ export default function Navbar() {
                   <p className="text-sm font-medium text-gray-800">{user.name}</p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${roleBadgeStyles[user.role] || roleBadgeStyles.user}`}>
-                  {roleLabels[user.role] || user.role}
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeStyle}`}>
+                  {badgeLabel}
                 </span>
               </div>
               <button

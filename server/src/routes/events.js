@@ -30,8 +30,8 @@ router.post('/', auth, async (req, res) => {
     const { clubId } = req.body;
     if (!clubId) return res.status(400).json({ message: 'clubId is required' });
     const membership = await getMembership(req.user.id, clubId);
-    if (!membership || !['president', 'committee'].includes(membership.role)) {
-      return res.status(403).json({ message: 'Not authorized' });
+    if (!membership || membership.role !== 'president') {
+      return res.status(403).json({ message: 'President only' });
     }
     const event = await Event.create({ ...req.body, createdBy: req.user.id });
     const populated = await Event.findById(event._id)
