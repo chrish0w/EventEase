@@ -5,12 +5,14 @@ const roleBadgeStyles: Record<string, string> = {
   president: 'bg-yellow-100 text-yellow-800 border border-yellow-300',
   committee: 'bg-purple-100 text-purple-800 border border-purple-300',
   user: 'bg-blue-100 text-blue-800 border border-blue-300',
+  super_admin: 'bg-purple-100 text-purple-800 border border-purple-300',
 };
 
 const roleLabels: Record<string, string> = {
   president: 'President',
   committee: 'Committee',
   user: 'Member',
+  super_admin: 'Super Admin',
 };
 
 export default function Navbar() {
@@ -23,10 +25,15 @@ export default function Navbar() {
   };
 
   const clubRole = selectedClub?.role;
-  const badgeStyle = roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user;
-  const badgeLabel = clubRole === 'committee' && selectedClub?.committeeRole
-    ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
-    : roleLabels[clubRole || ''] || 'Member';
+  const isSuperAdmin = user?.role === 'super_admin';
+  const badgeStyle = isSuperAdmin
+    ? 'bg-purple-100 text-purple-800 border border-purple-300'
+    : (roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user);
+  const badgeLabel = isSuperAdmin ? 'Super Admin' : (
+    clubRole === 'committee' && selectedClub?.committeeRole
+      ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
+      : roleLabels[clubRole || ''] || 'Member'
+  );
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
