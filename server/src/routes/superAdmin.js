@@ -61,4 +61,54 @@ router.delete('/clubs/:id', superAdmin, async (req, res) => {
   }
 });
 
+// List all users
+router.get('/users', superAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}, 'name email studentId role').sort({ name: 1 });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Change a user's platform role (e.g. promote to admin or demote)
+router.put('/users/:id/role', superAdmin, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const allowed = ['user', 'admin'];
+    if (!allowed.includes(role)) return res.status(400).json({ message: 'Invalid role' });
+    const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({ id: user._id, name: user.name, email: user.email, role: user.role });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Assign a club-level president via super admin
+router.post('/clubs/:id/assign-president', superAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    await ClubMembership.findOneAndUpdate(
+      { userId, clubId: req.params.id },
+      { userId, clubId: req.params.id, role: 'president' },
+      { upsert: true, new: true }
+    );
+    res.json({ message: 'President assigned' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Get members of a club (for super admin view)
+router.get('/clubs/:id/members', superAdmin, async (req, res) => {
+  try {
+    const members = await ClubMembership.find({ clubId: req.params.id })
+      .populate('userId', 'name email studentId');
+    res.json(members);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
