@@ -53,7 +53,8 @@ router.put('/clubs/:id', superAdmin, async (req, res) => {
 // Delete club (also removes memberships)
 router.delete('/clubs/:id', superAdmin, async (req, res) => {
   try {
-    await Club.findByIdAndDelete(req.params.id);
+    const club = await Club.findByIdAndDelete(req.params.id);
+    if (!club) return res.status(404).json({ message: 'Club not found' });
     await ClubMembership.deleteMany({ clubId: req.params.id });
     res.json({ message: 'Club deleted' });
   } catch (err) {

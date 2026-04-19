@@ -5,14 +5,12 @@ const roleBadgeStyles: Record<string, string> = {
   president: 'bg-yellow-100 text-yellow-800 border border-yellow-300',
   committee: 'bg-purple-100 text-purple-800 border border-purple-300',
   user: 'bg-blue-100 text-blue-800 border border-blue-300',
-  super_admin: 'bg-purple-100 text-purple-800 border border-purple-300',
 };
 
 const roleLabels: Record<string, string> = {
   president: 'President',
   committee: 'Committee',
   user: 'Member',
-  super_admin: 'Super Admin',
 };
 
 export default function Navbar() {
