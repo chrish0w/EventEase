@@ -3,10 +3,10 @@ const mongoose = require('mongoose');
 const User = require('../src/models/User');
 
 const ADMIN = {
-  name: 'Monash Admin',
-  email: 'admin@monash.edu',
-  password: 'Admin@2026',
-  role: 'admin',
+  name: 'EventEase Super Admin',
+  email: 'superadmin@eventease.com',
+  password: 'SuperAdmin@2026',
+  role: 'super_admin',
 };
 
 async function run() {

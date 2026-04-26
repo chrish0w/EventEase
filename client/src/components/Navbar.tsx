@@ -23,10 +23,15 @@ export default function Navbar() {
   };
 
   const clubRole = selectedClub?.role;
-  const badgeStyle = roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user;
-  const badgeLabel = clubRole === 'committee' && selectedClub?.committeeRole
-    ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
-    : roleLabels[clubRole || ''] || 'Member';
+  const isSuperAdmin = user?.role === 'super_admin';
+  const badgeStyle = isSuperAdmin
+    ? 'bg-purple-100 text-purple-800 border border-purple-300'
+    : (roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user);
+  const badgeLabel = isSuperAdmin ? 'Super Admin' : (
+    clubRole === 'committee' && selectedClub?.committeeRole
+      ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
+      : roleLabels[clubRole || ''] || 'Member'
+  );
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
