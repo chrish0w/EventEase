@@ -9,6 +9,7 @@ import PresidentDashboard from './pages/PresidentDashboard';
 import CreateEventPage from './pages/CreateEventPage';
 import CommitteeEventsPage from './pages/CommitteeEventsPage';
 import PresidentEventsPage from './pages/PresidentEventsPage';
+import PresidentBudgetPage from './pages/PresidentBudgetPage';
 import ClubSelectPage from './pages/ClubSelectPage';
 import JoinClubPage from './pages/JoinClubPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/super-admin/organisations" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrgsPage /></PrivateRoute>} />
           <Route path="/super-admin/org-admins" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrgAdminsPage /></PrivateRoute>} />
           <Route path="/president/events" element={<PrivateRoute requiredRole="president"><PresidentEventsPage /></PrivateRoute>} />
+          <Route path="/president/budget" element={<PrivateRoute requiredRole="president"><PresidentBudgetPage /></PrivateRoute>} />
           <Route path="/president/events/create" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/president/events/:id/edit" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />

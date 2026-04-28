@@ -5,6 +5,13 @@ const clubSchema = new mongoose.Schema({
   description: String,
   totalBudget: { type: Number, default: 0 },
   remainingBudget: { type: Number, default: 0 },
+  incomeSources: {
+    organization: { type: Number, default: 0 },
+    membershipFees: { type: Number, default: 0 },
+    eventIncome: { type: Number, default: 0 },
+    sponsorship: { type: Number, default: 0 },
+    others: { type: Number, default: 0 },
+  },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
 

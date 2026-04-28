@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,28 @@ interface CommitteeMember {
 interface AssignedMember {
   userId: string;
   role: string;
+}
+
+interface BudgetLineItem {
+  _id?: string;
+  description: string;
+  assignedAmount: string;
+  actualAmount: string;
+}
+
+interface SavedBudgetLineItem {
+  _id?: string;
+  description?: string;
+  label?: string;
+  assignedAmount?: number;
+  budgetedAmount?: number;
+  actualAmount?: number;
+}
+
+interface EventBudgetResponse {
+  event: {
+    lineItems: SavedBudgetLineItem[];
+  };
 }
 
 const COMMITTEE_ROLES = [
@@ -30,6 +52,20 @@ const CATEGORIES = [
   { value: 'finance', label: 'Finance', icon: '💰' },
   { value: 'other', label: 'Other', icon: '📌' },
 ];
+
+const emptyBudgetLineItem = (): BudgetLineItem => ({
+  description: '',
+  assignedAmount: '',
+  actualAmount: '0',
+});
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
 
 export default function CreateEventPage() {
   const { selectedClub } = useAuth();
@@ -49,6 +85,11 @@ export default function CreateEventPage() {
   });
   const [assignedCommittee, setAssignedCommittee] = useState<AssignedMember[]>([]);
   const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
+  const [budgetLineItems, setBudgetLineItems] = useState<BudgetLineItem[]>([emptyBudgetLineItem()]);
+  const [budgetDraftId, setBudgetDraftId] = useState('');
+  const [budgetDirty, setBudgetDirty] = useState(false);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetMessage, setBudgetMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,6 +122,23 @@ export default function CreateEventPage() {
   }, [isEdit, eventId]);
 
   useEffect(() => {
+    if (!isPresident || !isEdit || !eventId || !selectedClub?.clubId) return;
+
+    api.get<EventBudgetResponse>(`/budget/event/${eventId}?clubId=${selectedClub.clubId}`)
+      .then(res => {
+        const lineItems = res.data.event.lineItems || [];
+        setBudgetLineItems(lineItems.length ? lineItems.map(item => ({
+          _id: item._id,
+          description: item.description ?? item.label ?? '',
+          assignedAmount: String(item.assignedAmount ?? item.budgetedAmount ?? 0),
+          actualAmount: String(item.actualAmount ?? 0),
+        })) : [emptyBudgetLineItem()]);
+        setBudgetDirty(false);
+      })
+      .catch(() => {});
+  }, [eventId, isEdit, isPresident, selectedClub?.clubId]);
+
+  useEffect(() => {
     if (isPresident && selectedClub?.clubId) {
       api.get(`/events/committee-members?clubId=${selectedClub.clubId}`)
         .then(res => setCommitteeMembers(res.data))
@@ -104,6 +162,83 @@ export default function CreateEventPage() {
     setAssignedCommittee(prev => prev.filter((_, i) => i !== index));
   };
 
+  const totalAssignedBudget = useMemo(
+    () => budgetLineItems.reduce((sum, item) => sum + Number(item.assignedAmount || 0), 0),
+    [budgetLineItems]
+  );
+
+  const totalActualBudget = useMemo(
+    () => budgetLineItems.reduce((sum, item) => sum + Number(item.actualAmount || 0), 0),
+    [budgetLineItems]
+  );
+
+  const getBudgetPayload = () => budgetLineItems
+    .map(item => ({
+      _id: item._id,
+      description: item.description.trim(),
+      assignedAmount: Number(item.assignedAmount || 0),
+      actualAmount: Number(item.actualAmount || 0),
+    }))
+    .filter(item => item.description || item.assignedAmount || item.actualAmount);
+
+  const updateBudgetLineItem = (index: number, field: keyof BudgetLineItem, value: string) => {
+    setBudgetLineItems(prev => prev.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [field]: value } : item
+    )));
+    setBudgetDirty(true);
+    setBudgetMessage('');
+  };
+
+  const addBudgetLineItem = () => {
+    setBudgetLineItems(prev => [...prev, emptyBudgetLineItem()]);
+    setBudgetDirty(true);
+    setBudgetMessage('');
+  };
+
+  const removeBudgetLineItem = (index: number) => {
+    setBudgetLineItems(prev => {
+      const next = prev.filter((_, itemIndex) => itemIndex !== index);
+      return next.length ? next : [emptyBudgetLineItem()];
+    });
+    setBudgetDirty(true);
+    setBudgetMessage('');
+  };
+
+  const saveBudgetSection = async () => {
+    if (!isPresident || !selectedClub?.clubId) return undefined;
+
+    const lineItems = getBudgetPayload();
+    setBudgetSaving(true);
+    setError('');
+    try {
+      if (isEdit && eventId) {
+        await api.put(`/budget/event/${eventId}`, {
+          clubId: selectedClub.clubId,
+          lineItems,
+        });
+        setBudgetMessage('Budget saved.');
+        setBudgetDirty(false);
+        return undefined;
+      }
+
+      const res = await api.put<{ draftId: string }>('/budget/draft', {
+        clubId: selectedClub.clubId,
+        draftId: budgetDraftId || undefined,
+        lineItems,
+      });
+      setBudgetDraftId(res.data.draftId);
+      setBudgetMessage('Budget saved for this event draft.');
+      setBudgetDirty(false);
+      return res.data.draftId;
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Failed to save budget.');
+      throw err;
+    } finally {
+      setBudgetSaving(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -120,7 +255,18 @@ export default function CreateEventPage() {
       }
       if (isEdit && eventId) {
         await api.put(`/events/${eventId}`, payload);
+        if (budgetDirty) {
+          await saveBudgetSection();
+        }
       } else {
+        const hasBudgetRows = getBudgetPayload().length > 0;
+        let nextBudgetDraftId = budgetDraftId;
+        if (isPresident && hasBudgetRows && (!nextBudgetDraftId || budgetDirty)) {
+          nextBudgetDraftId = await saveBudgetSection() || '';
+        }
+        if (nextBudgetDraftId) {
+          payload.budgetDraftId = nextBudgetDraftId;
+        }
         await api.post('/events', payload);
       }
       navigate(isPresident ? '/president/events' : '/committee/events');
@@ -137,7 +283,7 @@ export default function CreateEventPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-5xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button
@@ -326,6 +472,119 @@ export default function CreateEventPage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {isPresident && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-700">Event Budget</h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {isEdit
+                      ? 'Assigned amounts are locked. Update actual spending and descriptions as the event progresses.'
+                      : 'Assign the planned budget now. Actual amounts start at zero and can be updated later from the event edit page.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveBudgetSection()}
+                  disabled={budgetSaving}
+                  className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {budgetSaving ? 'Saving...' : 'Save Budget'}
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <div className="min-w-[720px]">
+                  <div className="grid grid-cols-[1fr_1fr_2fr_48px] bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <div className="px-4 py-3 border-b border-gray-200">Assigned Amount</div>
+                    <div className="px-4 py-3 border-b border-gray-200">Actual Amount</div>
+                    <div className="px-4 py-3 border-b border-gray-200">Description</div>
+                    <div className="px-4 py-3 border-b border-gray-200" />
+                  </div>
+
+                  {budgetLineItems.map((item, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_1fr_2fr_48px] items-center border-b border-gray-100 last:border-b-0">
+                      <div className="px-4 py-3">
+                        <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 px-3 focus-within:ring-2 focus-within:ring-blue-500">
+                          <span className="text-sm text-gray-500">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.assignedAmount}
+                            onChange={event => updateBudgetLineItem(index, 'assignedAmount', event.target.value)}
+                            placeholder="0.00"
+                            disabled={isEdit}
+                            className={`w-full bg-transparent px-2 py-2 text-sm outline-none ${isEdit ? 'cursor-not-allowed text-gray-500' : 'text-gray-900'}`}
+                          />
+                        </div>
+                      </div>
+                      <div className="px-4 py-3">
+                        <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50 px-3 focus-within:ring-2 focus-within:ring-blue-500">
+                          <span className="text-sm text-gray-500">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.actualAmount}
+                            onChange={event => updateBudgetLineItem(index, 'actualAmount', event.target.value)}
+                            placeholder="0.00"
+                            disabled={!isEdit}
+                            className={`w-full bg-transparent px-2 py-2 text-sm outline-none ${!isEdit ? 'cursor-not-allowed text-gray-500' : 'text-gray-900'}`}
+                          />
+                        </div>
+                      </div>
+                      <div className="px-4 py-3">
+                        <input
+                          value={item.description}
+                          onChange={event => updateBudgetLineItem(index, 'description', event.target.value)}
+                          placeholder="What will this money be used for?"
+                          className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="px-4 py-3 text-right">
+                        {!isEdit && (
+                          <button
+                            type="button"
+                            onClick={() => removeBudgetLineItem(index)}
+                            className="text-lg text-gray-400 hover:text-red-500 transition"
+                            aria-label="Remove budget row"
+                          >
+                            x
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                {!isEdit && (
+                  <button
+                    type="button"
+                    onClick={addBudgetLineItem}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                  >
+                    + Add Row
+                  </button>
+                )}
+                <div className="ml-auto text-right">
+                  <p className="text-sm font-semibold text-gray-800">
+                    Total Budget: {formatCurrency(isEdit ? totalActualBudget : totalAssignedBudget)}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {isEdit ? 'Assigned Amount' : 'Actual Amount'}: {formatCurrency(isEdit ? totalAssignedBudget : totalActualBudget)}
+                  </p>
+                </div>
+              </div>
+
+              {budgetMessage && (
+                <p className="mt-3 text-sm font-medium text-green-700">{budgetMessage}</p>
               )}
             </div>
           )}

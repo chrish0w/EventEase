@@ -1,12 +1,33 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const Club = require('../models/Club');
 const Event = require('../models/Event');
 const Budget = require('../models/Budget');
+const BudgetDraft = require('../models/BudgetDraft');
 const ClubMembership = require('../models/ClubMembership');
 
 // Helper: get user's membership in a club
 async function getMembership(userId, clubId) {
   return ClubMembership.findOne({ userId, clubId });
+}
+
+function getTotals(lineItems = []) {
+  return lineItems.reduce((totals, item) => ({
+    budgetedAmount: totals.budgetedAmount + Number(item.budgetedAmount || 0),
+    actualAmount: totals.actualAmount + Number(item.actualAmount || 0),
+  }), { budgetedAmount: 0, actualAmount: 0 });
+}
+
+async function recalculateRemainingBudget(clubId) {
+  const [club, budgets] = await Promise.all([
+    Club.findById(clubId),
+    Budget.find({ clubId }),
+  ]);
+  if (!club) return;
+
+  const totalSpending = budgets.reduce((sum, budget) => sum + Number(budget.actualAmount || 0), 0);
+  club.remainingBudget = Number(club.totalBudget || 0) - totalSpending;
+  await club.save();
 }
 
 // Get club members for committee assignment (president only) — before /:id
@@ -28,13 +49,43 @@ router.get('/committee-members', auth, async (req, res) => {
 // Create event (president or committee of the club)
 router.post('/', auth, async (req, res) => {
   try {
-    const { clubId } = req.body;
+    const { clubId, budgetDraftId } = req.body;
     if (!clubId) return res.status(400).json({ message: 'clubId is required' });
     const membership = await getMembership(req.user.id, clubId);
     if (!membership || membership.role !== 'president') {
       return res.status(403).json({ message: 'President only' });
     }
-    const event = await Event.create({ ...req.body, createdBy: req.user.id });
+
+    let budgetDraft = null;
+    if (budgetDraftId) {
+      budgetDraft = await BudgetDraft.findOne({ clubId, userId: req.user.id, draftId: budgetDraftId });
+      if (!budgetDraft) return res.status(400).json({ message: 'Budget draft not found' });
+    }
+
+    const eventPayload = { ...req.body };
+    delete eventPayload.budgetDraftId;
+
+    const event = await Event.create({ ...eventPayload, createdBy: req.user.id });
+
+    if (budgetDraft) {
+      const totals = getTotals(budgetDraft.lineItems);
+      if (budgetDraft.lineItems.length > 0) {
+        await Budget.findOneAndUpdate(
+          { clubId, eventId: event._id },
+          {
+            clubId,
+            eventId: event._id,
+            lineItems: budgetDraft.lineItems,
+            budgetedAmount: totals.budgetedAmount,
+            actualAmount: totals.actualAmount,
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      }
+      await BudgetDraft.findByIdAndDelete(budgetDraft._id);
+      await recalculateRemainingBudget(clubId);
+    }
+
     const populated = await Event.findById(event._id)
       .populate('createdBy', 'name email')
       .populate('assignedCommittee.userId', 'name email');
@@ -123,6 +174,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
     await Event.findByIdAndDelete(req.params.id);
     await Budget.findOneAndDelete({ clubId: event.clubId, eventId: event._id });
+    await recalculateRemainingBudget(event.clubId);
     res.json({ message: 'Event deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
