@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import api from '../api/axios';
 
 interface Stats {
-  totalClubs: number;
+  totalOrgs: number;
   totalUsers: number;
   totalAdmins: number;
 }
@@ -38,7 +38,7 @@ export default function SuperAdminDashboard() {
         {stats && (
           <div className="grid grid-cols-3 gap-4 mb-6">
             {[
-              { label: 'Total Clubs', value: stats.totalClubs },
+              { label: 'Total Organisations', value: stats.totalOrgs },
               { label: 'Total Users', value: stats.totalUsers },
               { label: 'Org Admins', value: stats.totalAdmins },
             ].map(s => (

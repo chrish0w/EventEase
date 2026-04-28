@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 
-interface User { id: string; name: string; email: string; role: string; }
+interface User { id: string; name: string; email: string; role: string; orgId?: string | null; }
 
 interface SelectedClub {
   clubId: string;
