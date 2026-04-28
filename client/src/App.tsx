@@ -12,17 +12,23 @@ import PresidentEventsPage from './pages/PresidentEventsPage';
 import ClubSelectPage from './pages/ClubSelectPage';
 import JoinClubPage from './pages/JoinClubPage';
 import AdminDashboard from './pages/AdminDashboard';
+import PresidentMembersPage from './pages/PresidentMembersPage';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import SuperAdminOrgsPage from './pages/SuperAdminOrgsPage';
+import SuperAdminOrgAdminsPage from './pages/SuperAdminOrgAdminsPage';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user, selectedClub } = useAuth();
   if (!token) return <Navigate to="/login" />;
+  if (requiredRole === 'super_admin' && user?.role !== 'super_admin') return <Navigate to="/dashboard" />;
   if (requiredRole === 'admin' && user?.role !== 'admin') return <Navigate to="/club-select" />;
-  if (requiredRole && requiredRole !== 'admin' && selectedClub?.role !== requiredRole) return <Navigate to="/club-select" />;
+  if (requiredRole && !['admin', 'super_admin'].includes(requiredRole) && selectedClub?.role !== requiredRole) return <Navigate to="/club-select" />;
   return <>{children}</>;
 }
 
 function RoleDashboard() {
   const { user } = useAuth();
+  if (user?.role === 'super_admin') return <Navigate to="/super-admin/dashboard" />;
   if (user?.role === 'admin') return <Navigate to="/admin/dashboard" />;
   return <Navigate to="/club-select" />;
 }
@@ -42,11 +48,14 @@ export default function App() {
           <Route path="/club-select" element={<PrivateRoute><ClubSelectPage /></PrivateRoute>} />
           <Route path="/clubs/join" element={<PrivateRoute><JoinClubPage /></PrivateRoute>} />
           <Route path="/admin/dashboard" element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
+          <Route path="/super-admin/dashboard" element={<PrivateRoute requiredRole="super_admin"><SuperAdminDashboard /></PrivateRoute>} />
+          <Route path="/super-admin/organisations" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrgsPage /></PrivateRoute>} />
+          <Route path="/super-admin/org-admins" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrgAdminsPage /></PrivateRoute>} />
           <Route path="/president/events" element={<PrivateRoute requiredRole="president"><PresidentEventsPage /></PrivateRoute>} />
           <Route path="/president/events/create" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/president/events/:id/edit" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />
-          <Route path="/committee/events/create" element={<PrivateRoute requiredRole="committee"><CreateEventPage /></PrivateRoute>} />
+          <Route path="/president/members" element={<PrivateRoute requiredRole="president"><PresidentMembersPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

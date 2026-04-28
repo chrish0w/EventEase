@@ -13,50 +13,25 @@ const roleLabels: Record<string, string> = {
   user: 'Member',
 };
 
-const presidentNavLinks = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'Home', path: '/president/dashboard' },
-  { key: 'events', label: 'Events', icon: 'Events', path: '/president/events' },
-  { key: 'tasks', label: 'Tasks', icon: 'Tasks' },
-  { key: 'members', label: 'Members', icon: 'Members' },
-  { key: 'safety', label: 'Safety Files', icon: 'Safety' },
-] as const satisfies ReadonlyArray<{ key: string; label: string; icon: string; path?: string }>;
-
-export function PresidentNav({ active }: { active: 'dashboard' | 'events' }) {
-  const navigate = useNavigate();
-
-  return (
-    <aside className="w-56 shrink-0">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Navigation</p>
-        <nav className="space-y-1">
-          {presidentNavLinks.map((link) => (
-            <button
-              key={link.label}
-              type="button"
-              onClick={() => { if ('path' in link && link.path) navigate(link.path); }}
-              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
-                link.key === active
-                  ? 'bg-yellow-50 text-yellow-800 font-medium'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {link.icon} {link.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-    </aside>
-  );
-}
-
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, selectedClub } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
+
+  const clubRole = selectedClub?.role;
+  const isSuperAdmin = user?.role === 'super_admin';
+  const badgeStyle = isSuperAdmin
+    ? 'bg-purple-100 text-purple-800 border border-purple-300'
+    : (roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user);
+  const badgeLabel = isSuperAdmin ? 'Super Admin' : (
+    clubRole === 'committee' && selectedClub?.committeeRole
+      ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
+      : roleLabels[clubRole || ''] || 'Member'
+  );
 
   return (
     <nav className="bg-white border-b border-gray-200 shadow-sm">
@@ -76,8 +51,8 @@ export default function Navbar() {
                   <p className="text-sm font-medium text-gray-800">{user.name}</p>
                   <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${roleBadgeStyles[user.role] || roleBadgeStyles.user}`}>
-                  {roleLabels[user.role] || user.role}
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeStyle}`}>
+                  {badgeLabel}
                 </span>
               </div>
               <button

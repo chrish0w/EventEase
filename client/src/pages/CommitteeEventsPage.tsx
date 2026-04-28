@@ -229,17 +229,9 @@ export default function CommitteeEventsPage() {
 
         {/* Main */}
         <main className="flex-1">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">My Events</h1>
-              <p className="text-sm text-gray-500 mt-0.5">Events you created or are assigned to.</p>
-            </div>
-            <button
-              onClick={() => navigate('/committee/events/create')}
-              className="bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-purple-700 transition"
-            >
-              + Create Event
-            </button>
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-gray-800">Club Events</h1>
+            <p className="text-sm text-gray-500 mt-0.5">All events for your club.</p>
           </div>
 
           {loading ? (
@@ -248,13 +240,7 @@ export default function CommitteeEventsPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
               <div className="text-5xl mb-4">📅</div>
               <p className="text-gray-500 font-medium">No events yet</p>
-              <p className="text-gray-400 text-sm mt-1">Events you create or get assigned to will appear here.</p>
-              <button
-                onClick={() => navigate('/committee/events/create')}
-                className="mt-4 bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition font-medium text-sm"
-              >
-                Create Your First Event
-              </button>
+              <p className="text-gray-400 text-sm mt-1">Events created by the president will appear here.</p>
             </div>
           ) : (
             <div className="space-y-4">

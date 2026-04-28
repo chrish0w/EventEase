@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 interface User { id: string; name: string; email: string; role: string; }
 
@@ -7,8 +7,6 @@ interface SelectedClub {
   clubName: string;
   role: 'president' | 'committee' | 'user';
   committeeRole?: string;
-  totalBudget?: number;
-  remainingBudget?: number;
 }
 
 interface AuthContextType {
@@ -18,7 +16,6 @@ interface AuthContextType {
   login: (token: string, user: User) => void;
   logout: () => void;
   selectClub: (club: SelectedClub) => void;
-  updateSelectedClub: (updates: Partial<SelectedClub>) => void;
   clearClub: () => void;
 }
 
@@ -56,29 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSelectedClub(club);
   };
 
-  const updateSelectedClub = useCallback((updates: Partial<SelectedClub>) => {
-    setSelectedClub((prev) => {
-      if (!prev) return prev;
-
-      const nextClub = { ...prev, ...updates };
-      const hasChanged = Object.keys(updates).some((key) => (
-        prev[key as keyof SelectedClub] !== nextClub[key as keyof SelectedClub]
-      ));
-
-      if (!hasChanged) return prev;
-
-      localStorage.setItem('selectedClub', JSON.stringify(nextClub));
-      return nextClub;
-    });
-  }, []);
-
   const clearClub = () => {
     localStorage.removeItem('selectedClub');
     setSelectedClub(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, selectedClub, login, logout, selectClub, updateSelectedClub, clearClub }}>
+    <AuthContext.Provider value={{ user, token, selectedClub, login, logout, selectClub, clearClub }}>
       {children}
     </AuthContext.Provider>
   );
