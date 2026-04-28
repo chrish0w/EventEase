@@ -173,6 +173,12 @@ export default function PresidentEventsPage() {
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <button
+                          onClick={() => navigate(`/president/events/${event._id}/workspaces`)}
+                          className="text-xs text-purple-500 hover:text-purple-700 transition"
+                        >
+                          Workspaces
+                        </button>
+                        <button
                           onClick={() => navigate(`/president/events/${event._id}/edit`)}
                           className="text-xs text-blue-500 hover:text-blue-700 transition"
                         >

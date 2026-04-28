@@ -15,12 +15,29 @@ interface AssignedMember {
   role: string;
 }
 
+interface DraftWorkspace {
+  type: string;
+  name: string;
+  description: string;
+  ownerId: string;
+}
+
 const COMMITTEE_ROLES = [
   { value: 'finance', label: 'Finance', icon: '💰' },
   { value: 'logistics', label: 'Logistics', icon: '📦' },
   { value: 'equipment', label: 'Equipment', icon: '🔧' },
   { value: 'transport', label: 'Transport', icon: '🚗' },
   { value: 'general', label: 'General', icon: '📋' },
+];
+
+const WORKSPACE_TEMPLATES = [
+  { type: 'budget', name: 'Budget', icon: '💰', desc: 'Track estimated and actual spending' },
+  { type: 'logistics', name: 'Logistics', icon: '📦', desc: 'Run sheets, timelines, checklists' },
+  { type: 'equipment', name: 'Equipment', icon: '🔧', desc: 'Item lists, sources, statuses' },
+  { type: 'transport', name: 'Transport', icon: '🚗', desc: 'Routes, schedules, contacts' },
+  { type: 'safety', name: 'Safety', icon: '⚠️', desc: 'Risk assessments, safety docs' },
+  { type: 'documents', name: 'Documents', icon: '📁', desc: 'Linked docs, sheets, slides' },
+  { type: 'tasks', name: 'Tasks / Notes', icon: '✅', desc: 'Lightweight task delegation' },
 ];
 
 const CATEGORIES = [
@@ -49,6 +66,8 @@ export default function CreateEventPage() {
   });
   const [assignedCommittee, setAssignedCommittee] = useState<AssignedMember[]>([]);
   const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
+  const [workspaces, setWorkspaces] = useState<DraftWorkspace[]>([]);
+  const [customName, setCustomName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -104,6 +123,29 @@ export default function CreateEventPage() {
     setAssignedCommittee(prev => prev.filter((_, i) => i !== index));
   };
 
+  const toggleTemplate = (type: string, name: string) => {
+    setWorkspaces(prev => {
+      const exists = prev.find(w => w.type === type);
+      if (exists) return prev.filter(w => w.type !== type);
+      return [...prev, { type, name, description: '', ownerId: '' }];
+    });
+  };
+
+  const updateWorkspace = (index: number, field: keyof DraftWorkspace, value: string) => {
+    setWorkspaces(prev => prev.map((w, i) => i === index ? { ...w, [field]: value } : w));
+  };
+
+  const removeWorkspace = (index: number) => {
+    setWorkspaces(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const addCustomWorkspace = () => {
+    const trimmed = customName.trim();
+    if (!trimmed) return;
+    setWorkspaces(prev => [...prev, { type: 'custom', name: trimmed, description: '', ownerId: '' }]);
+    setCustomName('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -118,10 +160,23 @@ export default function CreateEventPage() {
       if (isPresident) {
         payload.assignedCommittee = assignedCommittee.filter(a => a.userId);
       }
+      let savedEventId = eventId;
       if (isEdit && eventId) {
         await api.put(`/events/${eventId}`, payload);
       } else {
-        await api.post('/events', payload);
+        const res = await api.post('/events', payload);
+        savedEventId = res.data._id;
+      }
+      // Create attached workspaces (only for new events; edit flow uses dedicated page)
+      if (!isEdit && savedEventId && workspaces.length > 0) {
+        await Promise.all(workspaces.map(w =>
+          api.post(`/events/${savedEventId}/workspaces`, {
+            name: w.name,
+            type: w.type,
+            description: w.description || undefined,
+            owner: w.ownerId || undefined,
+          })
+        ));
       }
       navigate(isPresident ? '/president/events' : '/committee/events');
     } catch (err: unknown) {
@@ -326,6 +381,117 @@ export default function CreateEventPage() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Workspaces (President only, create flow) */}
+          {isPresident && !isEdit && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-gray-700">Add Workspaces</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Pick the operational areas for this event. You can edit them anytime later.</p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                {WORKSPACE_TEMPLATES.map(t => {
+                  const selected = workspaces.some(w => w.type === t.type);
+                  return (
+                    <button
+                      type="button"
+                      key={t.type}
+                      onClick={() => toggleTemplate(t.type, t.name)}
+                      className={`text-left border rounded-lg p-3 transition ${
+                        selected
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{t.icon}</span>
+                        <span className="text-sm font-medium text-gray-800">{t.name}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-1">{t.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-2 mb-4">
+                <input
+                  value={customName}
+                  onChange={e => setCustomName(e.target.value)}
+                  placeholder="Custom workspace name (e.g. Sponsorship)"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={addCustomWorkspace}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition"
+                >
+                  + Add Custom
+                </button>
+              </div>
+
+              {workspaces.length > 0 && (
+                <div className="space-y-3 border-t border-gray-100 pt-4">
+                  {workspaces.map((w, index) => (
+                    <div key={`${w.type}-${index}`} className="border border-gray-100 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm font-medium text-gray-800">
+                          {WORKSPACE_TEMPLATES.find(t => t.type === w.type)?.icon ?? '📌'} {w.name}
+                          <span className="ml-2 text-xs text-gray-400">({w.type})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeWorkspace(index)}
+                          className="text-gray-400 hover:text-red-500 transition text-lg"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={w.ownerId}
+                          onChange={e => updateWorkspace(index, 'ownerId', e.target.value)}
+                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">Owner (optional)…</option>
+                          {committeeMembers.map(m => (
+                            <option key={m._id} value={m._id}>{m.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          value={w.description}
+                          onChange={e => updateWorkspace(index, 'description', e.target.value)}
+                          placeholder="Short description (optional)"
+                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {isPresident && isEdit && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+              <span className="text-xl">🗂️</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-800">Manage workspaces separately</p>
+                <p className="text-sm text-blue-700 mt-0.5">
+                  Use the event's Workspaces page to add, edit, or delete workspaces and tasks.
+                </p>
+              </div>
+              {eventId && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/president/events/${eventId}/workspaces`)}
+                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 transition self-center"
+                >
+                  Open Workspaces
+                </button>
               )}
             </div>
           )}
