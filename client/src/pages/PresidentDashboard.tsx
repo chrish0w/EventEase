@@ -30,7 +30,7 @@ const sidebarLinks = [
   { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
   { icon: '📅', label: 'Events', path: '/president/events' },
   { icon: '✅', label: 'Tasks', path: null },
-  { icon: '💰', label: 'Budget', path: null },
+  { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: '/president/members' },
   { icon: '🗂️', label: 'Safety Files', path: null },
 ];
@@ -41,12 +41,21 @@ interface JoinRequest {
   message?: string;
 }
 
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
 export default function PresidentDashboard() {
   const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [remainingBudget, setRemainingBudget] = useState(0);
 
   useEffect(() => {
     if (!selectedClub?.clubId) return;
@@ -61,6 +70,13 @@ export default function PresidentDashboard() {
     api.get(`/clubs/${selectedClub.clubId}/requests`)
       .then(res => setJoinRequests(res.data))
       .catch(() => {});
+  }, [selectedClub]);
+
+  useEffect(() => {
+    if (!selectedClub?.clubId) return;
+    api.get(`/budget?clubId=${selectedClub.clubId}`)
+      .then(res => setRemainingBudget(Number(res.data.remainingBudget || 0)))
+      .catch(() => setRemainingBudget(0));
   }, [selectedClub]);
 
   const handleRequest = async (requestId: string, status: 'approved' | 'rejected') => {
@@ -87,7 +103,7 @@ export default function PresidentDashboard() {
     { label: 'Total Events', value: String(events.length), icon: '📅', color: 'bg-blue-50 text-blue-700' },
     { label: 'Total Members', value: '0', icon: '👥', color: 'bg-green-50 text-green-700' },
     { label: 'Active Tasks', value: '0', icon: '✅', color: 'bg-purple-50 text-purple-700' },
-    { label: 'Budget Overview', value: '$0', icon: '💰', color: 'bg-yellow-50 text-yellow-700' },
+    { label: 'Budget Overview', value: formatCurrency(remainingBudget), icon: '💰', color: 'bg-yellow-50 text-yellow-700', actionPath: '/president/budget' },
   ];
 
   return (
@@ -136,8 +152,19 @@ export default function PresidentDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {stats.map((stat) => (
               <div key={stat.label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-xl mb-3 ${stat.color}`}>
-                  {stat.icon}
+                <div className="flex items-start justify-between gap-3">
+                  <div className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-xl mb-3 ${stat.color}`}>
+                    {stat.icon}
+                  </div>
+                  {'actionPath' in stat && stat.actionPath && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(stat.actionPath)}
+                      className="text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      View
+                    </button>
+                  )}
                 </div>
                 <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
                 <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
