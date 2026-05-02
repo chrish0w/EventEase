@@ -50,22 +50,30 @@ export default function SuperAdminDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <button
+            onClick={() => navigate('/super-admin/organisation-requests')}
+            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-left hover:border-purple-300 hover:shadow-md transition"
+          >
+            <div className="text-2xl mb-2">📨</div>
+            <p className="font-semibold text-gray-800">Organisation Requests</p>
+            <p className="text-sm text-gray-400 mt-1">Review new organisation workspace requests.</p>
+          </button>
           <button
             onClick={() => navigate('/super-admin/organisations')}
             className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-left hover:border-purple-300 hover:shadow-md transition"
           >
             <div className="text-2xl mb-2">🏫</div>
             <p className="font-semibold text-gray-800">Organisation Management</p>
-            <p className="text-sm text-gray-400 mt-1">Create, edit, or delete clubs.</p>
+            <p className="text-sm text-gray-400 mt-1">View universities and assign organisation admins.</p>
           </button>
           <button
-            onClick={() => navigate('/super-admin/org-admins')}
+            onClick={() => navigate('/super-admin/users')}
             className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-left hover:border-purple-300 hover:shadow-md transition"
           >
             <div className="text-2xl mb-2">👤</div>
-            <p className="font-semibold text-gray-800">Org Admin Management</p>
-            <p className="text-sm text-gray-400 mt-1">Assign or manage platform admins.</p>
+            <p className="font-semibold text-gray-800">Users & Roles</p>
+            <p className="text-sm text-gray-400 mt-1">Search users and review their platform or club roles.</p>
           </button>
         </div>
       </div>

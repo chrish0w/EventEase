@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const OrgAdminAssignment = require('../models/OrgAdminAssignment');
+const ClubInvitation = require('../models/ClubInvitation');
+const ClubMembership = require('../models/ClubMembership');
 
 router.post('/register', async (req, res) => {
   try {
@@ -10,6 +12,23 @@ router.post('/register', async (req, res) => {
     const exists = await User.findOne({ email });
     if (exists) return res.status(400).json({ message: 'Email already registered' });
     const user = await User.create({ name, email, password, studentId, role });
+    const invitations = await ClubInvitation.find({ email: email.toLowerCase(), status: 'pending' });
+    await Promise.all(invitations.map(async invitation => {
+      if (invitation.role === 'president') {
+        await ClubMembership.updateMany(
+          { clubId: invitation.clubId, role: 'president', userId: { $ne: user._id } },
+          { role: 'user', $unset: { committeeRole: '' } }
+        );
+      }
+      await ClubMembership.findOneAndUpdate(
+        { userId: user._id, clubId: invitation.clubId },
+        { $set: { userId: user._id, clubId: invitation.clubId, role: invitation.role }, $unset: { committeeRole: '' } },
+        { upsert: true, new: true }
+      );
+      invitation.status = 'accepted';
+      invitation.acceptedAt = new Date();
+      await invitation.save();
+    }));
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {

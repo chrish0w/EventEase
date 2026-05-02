@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import PublicNav from '../components/PublicNav';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -27,8 +28,11 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+    <div className="min-h-screen bg-gray-50">
+      <PublicNav />
+
+      <main className="flex items-center justify-center px-4 py-12">
+        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-blue-600">EventEase</h1>
           <p className="text-gray-500 text-sm mt-1">Create your account</p>
@@ -51,7 +55,7 @@ export default function Register() {
             <input
               className="w-full border rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
               type="email"
-              placeholder="you@student.monash.edu"
+              placeholder="you@example.com"
               value={form.email}
               onChange={e => setForm({ ...form, email: e.target.value })}
               required
@@ -89,10 +93,8 @@ export default function Register() {
           Already have an account?{' '}
           <Link to="/login" className="text-blue-600 font-medium hover:underline">Sign In</Link>
         </p>
-        <p className="text-center mt-2 text-sm">
-          <Link to="/" className="text-gray-400 hover:text-gray-600">← Back to Home</Link>
-        </p>
       </div>
+      </main>
     </div>
   );
 }
