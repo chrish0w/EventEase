@@ -16,7 +16,14 @@ import AdminDashboard from './pages/AdminDashboard';
 import PresidentMembersPage from './pages/PresidentMembersPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SuperAdminOrgsPage from './pages/SuperAdminOrgsPage';
-import SuperAdminOrgAdminsPage from './pages/SuperAdminOrgAdminsPage';
+import SuperAdminUsersPage from './pages/SuperAdminUsersPage';
+import SuperAdminOrganisationRequestsPage from './pages/SuperAdminOrganisationRequestsPage';
+import ClubRegistrationRequestPage from './pages/ClubRegistrationRequestPage';
+import ConfirmClubRegistrationPage from './pages/ConfirmClubRegistrationPage';
+import ContactPage from './pages/ContactPage';
+import AboutPage from './pages/AboutPage';
+import OrganisationRegistrationRequestPage from './pages/OrganisationRegistrationRequestPage';
+import ConfirmOrganisationRegistrationPage from './pages/ConfirmOrganisationRegistrationPage';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user, selectedClub } = useAuth();
@@ -40,6 +47,12 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/request-club-registration" element={<ClubRegistrationRequestPage />} />
+          <Route path="/confirm-club-registration/:token" element={<ConfirmClubRegistrationPage />} />
+          <Route path="/request-organisation-registration" element={<OrganisationRegistrationRequestPage />} />
+          <Route path="/confirm-organisation-registration/:token" element={<ConfirmOrganisationRegistrationPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<PrivateRoute><RoleDashboard /></PrivateRoute>} />
@@ -51,7 +64,8 @@ export default function App() {
           <Route path="/admin/dashboard" element={<PrivateRoute requiredRole="admin"><AdminDashboard /></PrivateRoute>} />
           <Route path="/super-admin/dashboard" element={<PrivateRoute requiredRole="super_admin"><SuperAdminDashboard /></PrivateRoute>} />
           <Route path="/super-admin/organisations" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrgsPage /></PrivateRoute>} />
-          <Route path="/super-admin/org-admins" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrgAdminsPage /></PrivateRoute>} />
+          <Route path="/super-admin/users" element={<PrivateRoute requiredRole="super_admin"><SuperAdminUsersPage /></PrivateRoute>} />
+          <Route path="/super-admin/organisation-requests" element={<PrivateRoute requiredRole="super_admin"><SuperAdminOrganisationRequestsPage /></PrivateRoute>} />
           <Route path="/president/events" element={<PrivateRoute requiredRole="president"><PresidentEventsPage /></PrivateRoute>} />
           <Route path="/president/budget" element={<PrivateRoute requiredRole="president"><PresidentBudgetPage /></PrivateRoute>} />
           <Route path="/president/events/create" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />

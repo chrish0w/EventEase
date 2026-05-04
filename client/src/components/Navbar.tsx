@@ -38,7 +38,6 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold text-blue-600">EventEase</span>
-          <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">Monash</span>
         </div>
         <div className="flex items-center gap-4">
           {user && (
