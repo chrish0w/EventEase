@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import PublicNav from '../components/PublicNav';
+import Reveal from '../components/Reveal';
 
 const flow = [
   ['01', 'Request enters', 'Organisation or club requests start from Contact and include evidence.'],
@@ -52,8 +53,8 @@ export default function HomePage() {
                   <span className="rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-semibold px-3 py-1">Live flow</span>
                 </div>
                 <div className="space-y-3">
-                  {flow.map(([number, title, body]) => (
-                    <div key={number} className="group rounded-xl border border-white/10 bg-gray-950/50 p-4 hover:bg-white/10 transition">
+                  {flow.map(([number, title, body], index) => (
+                    <div key={number} className={`group rounded-xl border border-white/10 bg-gray-950/50 p-4 hover:bg-white/10 transition ${index % 2 === 0 ? 'scroll-slide-left' : 'scroll-slide-right'}`}>
                       <div className="flex gap-4">
                         <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-500/20 text-blue-100 flex items-center justify-center font-bold">{number}</div>
                         <div>
@@ -78,23 +79,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="relative px-6 py-28 overflow-hidden">
+      <section className="relative px-6 py-32 overflow-hidden">
         <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_50%_20%,#2563eb,transparent_30%),radial-gradient(circle_at_75%_80%,#0f766e,transparent_28%)]" />
         <div className="relative max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+          <Reveal className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-200 mb-3">Who EventEase supports</p>
             <h2 className="text-3xl md:text-4xl font-black">A connected workflow from approval to event delivery.</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <InfoCard title="For organisations" body="Approve organisation-level access, assign admins, and keep club onboarding governed." />
-            <InfoCard title="For clubs" body="Request a workspace, nominate a president, and move into event planning after approval." />
-            <InfoCard title="For committees" body="Work from one place for events, responsibilities, budgets, and member coordination." />
+          </Reveal>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Reveal delay={0}><InfoCard index="01" title="For organisations" body="Approve organisation-level access, assign admins, and keep club onboarding governed." /></Reveal>
+            <Reveal delay={120}><InfoCard index="02" title="For clubs" body="Request a workspace, nominate a president, and move into event planning after approval." /></Reveal>
+            <Reveal delay={240}><InfoCard index="03" title="For committees" body="Work from one place for events, responsibilities, budgets, and member coordination." /></Reveal>
           </div>
         </div>
       </section>
 
-      <section className="px-6 pb-24">
-        <div className="max-w-6xl mx-auto rounded-2xl border border-white/10 bg-white/5 px-8 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <section className="relative px-6 py-32 overflow-hidden">
+        <div className="absolute inset-0 opacity-25 bg-[radial-gradient(circle_at_22%_40%,#2563eb,transparent_30%),radial-gradient(circle_at_78%_20%,#0f766e,transparent_32%)]" />
+        <Reveal className="relative max-w-5xl mx-auto rounded-2xl border border-white/10 bg-white/5 px-8 md:px-12 py-16 md:py-20 flex flex-col md:flex-row md:items-center md:justify-between gap-10 scroll-scale-focus">
           <div>
             <h2 className="text-3xl font-bold mb-2">Need to onboard an organisation or club?</h2>
             <p className="text-gray-400">Contact has both request paths in one place.</p>
@@ -102,10 +104,10 @@ export default function HomePage() {
           <Link to="/contact" className="bg-white text-gray-950 font-semibold px-6 py-3 rounded-lg hover:bg-blue-50 transition text-center">
             Open Contact
           </Link>
-        </div>
+        </Reveal>
       </section>
 
-      <footer className="bg-gray-950 text-gray-400 py-10 px-6">
+      <footer className="bg-gray-950 text-gray-400 pt-6 pb-10 px-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <p className="text-white font-semibold">EventEase</p>
           <p className="text-sm">© 2026 EventEase. Built for organisations, clubs, and student communities.</p>
@@ -115,11 +117,17 @@ export default function HomePage() {
   );
 }
 
-function InfoCard({ title, body }: { title: string; body: string }) {
+function InfoCard({ index, title, body }: { index: string; title: string; body: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-6 hover:bg-white/10 transition">
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-sm text-gray-400 leading-relaxed">{body}</p>
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-10 md:p-12 min-h-80 md:min-h-96 hover:bg-white/10 hover:-translate-y-1 transition flex flex-col justify-between scroll-card-rise">
+      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-8">
+        <div className="h-full bg-blue-300 scroll-progress-fill" />
+      </div>
+      <div>
+        <p className="text-sm font-bold text-blue-200 mb-5">{index}</p>
+        <h3 className="text-2xl md:text-3xl font-semibold mb-4">{title}</h3>
+        <p className="text-base text-gray-400 leading-relaxed">{body}</p>
+      </div>
     </div>
   );
 }

@@ -24,21 +24,21 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="public-page-shell">
       <PublicNav />
 
-      <main className="flex items-center justify-center px-4 py-12">
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+      <main className="public-bg min-h-[calc(100vh-73px)] flex items-center justify-center px-4 py-16">
+        <div className="relative bg-gray-900/85 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md backdrop-blur">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-blue-600">EventEase</h1>
-          <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
+          <p className="text-gray-400 text-sm mt-1">Sign in to your account</p>
         </div>
         {error && <p className="text-red-500 mb-4 text-sm bg-red-50 p-2 rounded">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-200 mb-1">Email</label>
             <input
-              className="w-full border rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
               type="email"
               placeholder="you@example.com"
               value={form.email}
@@ -47,9 +47,9 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-gray-200 mb-1">Password</label>
             <input
-              className="w-full border rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
               type="password"
               placeholder="••••••••"
               value={form.password}
@@ -64,7 +64,7 @@ export default function Login() {
             Sign In
           </button>
         </form>
-        <p className="text-center mt-4 text-sm text-gray-600">
+        <p className="text-center mt-4 text-sm text-gray-300">
           Don't have an account?{' '}
           <Link to="/register" className="text-blue-600 font-medium hover:underline">Register</Link>
         </p>

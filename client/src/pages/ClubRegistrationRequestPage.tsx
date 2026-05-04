@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import PublicNav from '../components/PublicNav';
 
 const roleOptions = [
   'Vice President',
@@ -143,24 +144,19 @@ export default function ClubRegistrationRequestPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <nav className="bg-white border-b border-gray-100 shadow-sm">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-            <Link to="/" className="text-2xl font-bold text-blue-600">EventEase</Link>
-            <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-blue-600">Login</Link>
-          </div>
-        </nav>
-        <main className="max-w-2xl mx-auto px-6 py-20">
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-8 text-center">
+      <div className="public-page-shell">
+        <PublicNav />
+        <main className="public-bg px-6 py-20">
+          <div className="relative max-w-2xl mx-auto bg-gray-900/85 border border-white/10 rounded-2xl shadow-2xl p-8 text-center backdrop-blur">
             <div className="w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto mb-5 text-2xl">
               ✓
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-3">Registration Request Submitted</h1>
-            <p className="text-gray-600 leading-relaxed">
+            <h1 className="text-2xl font-bold text-white mb-3">Registration Request Submitted</h1>
+            <p className="text-gray-300 leading-relaxed">
               Thanks for submitting your request. We have sent a confirmation email to verify your email address.
               Your request will move to admin review after confirmation.
             </p>
-            <p className="text-gray-500 mt-4">You will be contacted once your request has been reviewed.</p>
+            <p className="text-gray-400 mt-4">You will be contacted once your request has been reviewed.</p>
             {confirmationUrl && (
               <div className="mt-6 rounded-lg bg-blue-50 border border-blue-100 p-4 text-left">
                 <p className="text-sm font-semibold text-blue-900 mb-2">Development confirmation link</p>
@@ -183,22 +179,15 @@ export default function ClubRegistrationRequestPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold text-blue-600">EventEase</Link>
-          <div className="flex items-center gap-4">
-            <Link to="/" className="text-sm font-medium text-gray-500 hover:text-gray-700">Home</Link>
-            <Link to="/login" className="text-sm font-medium text-gray-600 hover:text-blue-600">Login</Link>
-          </div>
-        </div>
-      </nav>
+    <div className="public-page-shell">
+      <PublicNav />
 
-      <main className="max-w-3xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <p className="text-sm font-semibold uppercase text-blue-600 tracking-wide mb-2">Club onboarding</p>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Request Club Registration</h1>
-          <p className="text-gray-600 leading-relaxed">
+      <main className="public-bg px-6 py-12">
+        <div className="relative max-w-3xl mx-auto">
+        <div className="mb-8 reveal-up">
+          <p className="text-sm font-semibold uppercase text-blue-200 tracking-wide mb-2">Club onboarding</p>
+          <h1 className="text-4xl font-black text-white mb-3">Request Club Registration</h1>
+          <p className="text-gray-300 leading-relaxed">
             EventEase is for existing clubs and societies. If you are a current committee member,
             submit your club details below. An EventEase admin will review your request before creating your club workspace.
           </p>
@@ -210,10 +199,10 @@ export default function ClubRegistrationRequestPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-xl shadow-sm">
-          <section className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Club Details</h2>
-            <p className="text-sm text-gray-500 mb-5">These are the details of the club being registered.</p>
+        <form onSubmit={handleSubmit} className="form-panel reveal-soft">
+          <section className="form-section">
+            <h2 className="text-lg font-semibold text-white mb-1">Club Details</h2>
+            <p className="text-sm text-gray-400 mb-5">These are the details of the club being registered.</p>
             <div className="space-y-4">
               <FormField label="University" required>
                 <select required value={form.orgId} onChange={e => updateForm('orgId', e.target.value)} className="form-input">
@@ -236,9 +225,9 @@ export default function ClubRegistrationRequestPage() {
             </div>
           </section>
 
-          <section className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Your Details</h2>
-            <p className="text-sm text-gray-500 mb-5">This section identifies the person submitting the request.</p>
+          <section className="form-section">
+            <h2 className="text-lg font-semibold text-white mb-1">Your Details</h2>
+            <p className="text-sm text-gray-400 mb-5">This section identifies the person submitting the request.</p>
             <div className="space-y-4">
               <FormField label="Full Name" required>
                 <input required value={form.requesterFullName} onChange={e => updateForm('requesterFullName', e.target.value)} placeholder="Enter your full name" className="form-input" />
@@ -260,15 +249,15 @@ export default function ClubRegistrationRequestPage() {
             </div>
           </section>
 
-          <section className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-5">President Details</h2>
+          <section className="form-section">
+            <h2 className="text-lg font-semibold text-white mb-5">President Details</h2>
             <FormField label="Are you the current club president?" required>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { value: 'yes', label: 'Yes' },
                   { value: 'no', label: 'No' },
                 ].map(option => (
-                  <label key={option.value} className={`flex items-center justify-center border rounded-lg px-4 py-3 text-sm font-medium cursor-pointer transition ${form.isPresident === option.value ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                  <label key={option.value} className={`flex items-center justify-center border rounded-lg px-4 py-3 text-sm font-medium cursor-pointer transition ${form.isPresident === option.value ? 'border-blue-400 bg-blue-500/20 text-blue-100' : 'border-white/10 text-gray-300 hover:bg-white/10'}`}>
                     <input
                       required
                       type="radio"
@@ -295,16 +284,16 @@ export default function ClubRegistrationRequestPage() {
             )}
           </section>
 
-          <section className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Verification</h2>
-            <p className="text-sm text-gray-500 mb-5">
+          <section className="form-section">
+            <h2 className="text-lg font-semibold text-white mb-1">Verification</h2>
+            <p className="text-sm text-gray-400 mb-5">
               Accepted examples include committee confirmation, AGM minutes, official committee listing,
               email from an official club account, or an MSA-related club document.
             </p>
             <div className="space-y-4">
               <FormField label="Upload Proof of Club Role" required>
-                <input required type="file" onChange={e => handleFileChange(e.target.files?.[0])} className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2.5 file:font-semibold file:text-blue-700 hover:file:bg-blue-100" />
-                {proofFile && <p className="mt-2 text-xs text-green-700">{proofFile.name} selected</p>}
+                <input required type="file" onChange={e => handleFileChange(e.target.files?.[0])} className="block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-white/10 file:px-4 file:py-2.5 file:font-semibold file:text-blue-100 hover:file:bg-white/20" />
+                {proofFile && <p className="mt-2 text-xs text-green-300">{proofFile.name} selected</p>}
                 {fileError && <p className="mt-2 text-xs text-red-600">{fileError}</p>}
               </FormField>
               <FormField label="Additional Notes">
@@ -314,13 +303,13 @@ export default function ClubRegistrationRequestPage() {
           </section>
 
           <section className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-5">Declarations</h2>
+            <h2 className="text-lg font-semibold text-white mb-5">Declarations</h2>
             <div className="space-y-3">
-              <label className="flex items-start gap-3 text-sm text-gray-700">
+              <label className="flex items-start gap-3 text-sm text-gray-300">
                 <input required type="checkbox" checked={form.authorised} onChange={e => updateForm('authorised', e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600" />
                 <span>I confirm that I am authorised to request EventEase access for this club.</span>
               </label>
-              <label className="flex items-start gap-3 text-sm text-gray-700">
+              <label className="flex items-start gap-3 text-sm text-gray-300">
                 <input required type="checkbox" checked={form.reviewAcknowledged} onChange={e => updateForm('reviewAcknowledged', e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600" />
                 <span>I understand that this request will be reviewed before my club is created on EventEase.</span>
               </label>
@@ -334,6 +323,7 @@ export default function ClubRegistrationRequestPage() {
             </button>
           </section>
         </form>
+        </div>
       </main>
     </div>
   );
@@ -342,8 +332,8 @@ export default function ClubRegistrationRequestPage() {
 function FormField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-sm font-medium text-gray-700 mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
+      <span className="block text-sm font-medium text-gray-200 mb-1">
+        {label} {required && <span className="text-red-400">*</span>}
       </span>
       {children}
     </label>
