@@ -59,13 +59,22 @@ const INCOME_SOURCE_CONFIG: Array<{ key: IncomeSourceKey; label: string; color: 
   { key: 'others', label: 'Others', color: '#64748b' },
 ];
 
+// const sidebarLinks = [
+//   { label: 'Dashboard', path: '/president/dashboard' },
+//   { label: 'Events', path: '/president/events' },
+//   { label: 'Tasks', path: null },
+//   { label: 'Budget', path: '/president/budget' },
+//   { label: 'Members', path: '/president/members' },
+//   { label: 'Safety Files', path: null },
+// ];
+
 const sidebarLinks = [
-  { label: 'Dashboard', path: '/president/dashboard' },
-  { label: 'Events', path: '/president/events' },
-  { label: 'Tasks', path: null },
-  { label: 'Budget', path: '/president/budget' },
-  { label: 'Members', path: '/president/members' },
-  { label: 'Safety Files', path: null },
+  { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
+  { icon: '📅', label: 'Events', path: '/president/events' },
+  { icon: '✅', label: 'Tasks', path: null },
+  { icon: '💰', label: 'Budget', path: '/president/budget' },
+  { icon: '👥', label: 'Members', path: '/president/members' },
+  { icon: '🗂️', label: 'Safety Files', path: null },
 ];
 
 function formatCurrency(value: number) {
