@@ -27,13 +27,14 @@ const eventSchema = new mongoose.Schema({
   capacity: Number,
   rsvpDeadline: Date,
   requiresSafetyDisclaimer: { type: Boolean, default: false },
+  safetyFiles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SafetyFile' }],
   assignedCommittee: [committeeAssignmentSchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', required: true }
 }, { timestamps: true });
 
 eventSchema.pre('save', function(next) {
-  if (this.category === 'outdoor') this.requiresSafetyDisclaimer = true;
+  this.requiresSafetyDisclaimer = this.category === 'outdoor' || this.safetyFiles.length > 0;
   next();
 });
 

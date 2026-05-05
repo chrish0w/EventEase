@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +37,33 @@ interface EventBudgetResponse {
   };
 }
 
+interface SafetyFilePayload {
+  name: string;
+  type: string;
+  size: number;
+  data: string;
+}
+
+interface SafetyFileSummary {
+  _id?: string;
+  id?: string;
+  name: string;
+  type: string;
+  size: number;
+  createdAt?: string;
+  lastUsedAt?: string;
+}
+
+interface StagedSafetyFile {
+  key: string;
+  source: 'saved' | 'new';
+  id?: string;
+  file?: SafetyFilePayload;
+  name: string;
+  type: string;
+  size: number;
+}
+
 const COMMITTEE_ROLES = [
   { value: 'finance', label: 'Finance', icon: '💰' },
   { value: 'logistics', label: 'Logistics', icon: '📦' },
@@ -59,6 +86,8 @@ const emptyBudgetLineItem = (): BudgetLineItem => ({
   actualAmount: '0',
 });
 
+const MAX_SAFETY_FILE_SIZE = 5 * 1024 * 1024;
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-AU', {
     style: 'currency',
@@ -67,11 +96,37 @@ function formatCurrency(value: number) {
   }).format(value || 0);
 }
 
+function formatFileSize(size: number) {
+  if (!size) return '0 KB';
+  const mb = size / (1024 * 1024);
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+function getSafetyFileId(file: SafetyFileSummary) {
+  return file._id || file.id || '';
+}
+
+function toStagedSavedSafetyFile(file: SafetyFileSummary): StagedSafetyFile | null {
+  const id = getSafetyFileId(file);
+  if (!id) return null;
+
+  return {
+    key: `saved-${id}`,
+    source: 'saved',
+    id,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+  };
+}
+
 export default function CreateEventPage() {
   const { selectedClub } = useAuth();
   const navigate = useNavigate();
   const { id: eventId } = useParams<{ id?: string }>();
   const isEdit = !!eventId;
+  const safetyFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -90,6 +145,10 @@ export default function CreateEventPage() {
   const [budgetDirty, setBudgetDirty] = useState(false);
   const [budgetSaving, setBudgetSaving] = useState(false);
   const [budgetMessage, setBudgetMessage] = useState('');
+  const [previousSafetyFiles, setPreviousSafetyFiles] = useState<SafetyFileSummary[]>([]);
+  const [selectedPreviousSafetyFileId, setSelectedPreviousSafetyFileId] = useState('');
+  const [stagedSafetyFiles, setStagedSafetyFiles] = useState<StagedSafetyFile[]>([]);
+  const [safetyFileError, setSafetyFileError] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -116,6 +175,12 @@ export default function CreateEventPage() {
             userId: a.userId._id,
             role: a.role,
           })));
+        }
+        if (Array.isArray(e.safetyFiles)) {
+          const safetyFiles = e.safetyFiles as SafetyFileSummary[];
+          setStagedSafetyFiles(safetyFiles
+            .map(file => toStagedSavedSafetyFile(file))
+            .filter((file): file is StagedSafetyFile => Boolean(file)));
         }
       })
       .catch(() => {});
@@ -146,6 +211,14 @@ export default function CreateEventPage() {
     }
   }, [isPresident, selectedClub]);
 
+  useEffect(() => {
+    if (!isPresident || !selectedClub?.clubId) return;
+
+    api.get<SafetyFileSummary[]>(`/safety-files?clubId=${selectedClub.clubId}`)
+      .then(res => setPreviousSafetyFiles(res.data))
+      .catch(() => {});
+  }, [isPresident, selectedClub?.clubId]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -170,6 +243,21 @@ export default function CreateEventPage() {
   const totalActualBudget = useMemo(
     () => budgetLineItems.reduce((sum, item) => sum + Number(item.actualAmount || 0), 0),
     [budgetLineItems]
+  );
+
+  const stagedSavedSafetyFileIds = useMemo(
+    () => new Set(stagedSafetyFiles
+      .filter(file => file.source === 'saved' && file.id)
+      .map(file => file.id as string)),
+    [stagedSafetyFiles]
+  );
+
+  const availablePreviousSafetyFiles = useMemo(
+    () => previousSafetyFiles.filter(file => {
+      const fileId = getSafetyFileId(file);
+      return fileId && !stagedSavedSafetyFileIds.has(fileId);
+    }),
+    [previousSafetyFiles, stagedSavedSafetyFileIds]
   );
 
   const getBudgetPayload = () => budgetLineItems
@@ -203,6 +291,103 @@ export default function CreateEventPage() {
     setBudgetDirty(true);
     setBudgetMessage('');
   };
+
+  const addPreviousSafetyFile = () => {
+    setSafetyFileError('');
+    if (!selectedPreviousSafetyFileId) return;
+
+    const selectedFile = previousSafetyFiles.find(file => getSafetyFileId(file) === selectedPreviousSafetyFileId);
+    const stagedFile = selectedFile ? toStagedSavedSafetyFile(selectedFile) : null;
+    if (!stagedFile) {
+      setSafetyFileError('Could not add that safety file.');
+      return;
+    }
+
+    setStagedSafetyFiles(prev => (
+      prev.some(file => file.key === stagedFile.key) ? prev : [...prev, stagedFile]
+    ));
+    setSelectedPreviousSafetyFileId('');
+  };
+
+  const readSafetyFile = (file: File, index: number) => new Promise<StagedSafetyFile>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const payload = {
+        name: file.name,
+        type: 'application/pdf',
+        size: file.size,
+        data: String(reader.result),
+      };
+
+      resolve({
+        key: `new-${Date.now()}-${index}-${file.name}-${file.size}`,
+        source: 'new',
+        file: payload,
+        name: payload.name,
+        type: payload.type,
+        size: payload.size,
+      });
+    };
+    reader.onerror = () => reject(new Error('Could not read that PDF. Please try another file.'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleSafetyFileChange = async (files?: FileList | null) => {
+    setSafetyFileError('');
+    if (!files?.length) return;
+
+    const selectedFiles = Array.from(files);
+    for (const file of selectedFiles) {
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!isPdf) {
+        setSafetyFileError('Please choose PDF safety files only.');
+        if (safetyFileInputRef.current) safetyFileInputRef.current.value = '';
+        return;
+      }
+
+      if (file.size > MAX_SAFETY_FILE_SIZE) {
+        setSafetyFileError('Please choose PDFs that are 5MB or smaller.');
+        if (safetyFileInputRef.current) safetyFileInputRef.current.value = '';
+        return;
+      }
+    }
+
+    try {
+      const stagedFiles = await Promise.all(selectedFiles.map((file, index) => readSafetyFile(file, index)));
+      setStagedSafetyFiles(prev => [...prev, ...stagedFiles]);
+    } catch (err) {
+      setSafetyFileError((err as Error).message || 'Could not read those PDFs. Please try again.');
+    } finally {
+      if (safetyFileInputRef.current) safetyFileInputRef.current.value = '';
+    }
+  };
+
+  const removeStagedSafetyFile = (key: string) => {
+    setStagedSafetyFiles(prev => prev.filter(file => file.key !== key));
+    setSafetyFileError('');
+  };
+
+  const clearSafetyFiles = () => {
+    setStagedSafetyFiles([]);
+    setSelectedPreviousSafetyFileId('');
+    setSafetyFileError('');
+    if (safetyFileInputRef.current) safetyFileInputRef.current.value = '';
+  };
+
+  const getSafetyFilePayload = () => ({
+    safetyFileIds: stagedSafetyFiles
+      .filter((file): file is StagedSafetyFile & { id: string } => file.source === 'saved' && Boolean(file.id))
+      .map(file => file.id),
+    newSafetyFiles: stagedSafetyFiles
+      .filter((file): file is StagedSafetyFile & { file: SafetyFilePayload } => file.source === 'new' && Boolean(file.file))
+      .map(file => file.file),
+  });
+
+  const selectedPreviousAlreadyAttached = selectedPreviousSafetyFileId
+    ? stagedSavedSafetyFileIds.has(selectedPreviousSafetyFileId)
+    : false;
+
+  const canAddPreviousSafetyFile = Boolean(selectedPreviousSafetyFileId) && !selectedPreviousAlreadyAttached;
 
   const saveBudgetSection = async () => {
     if (!isPresident || !selectedClub?.clubId) return undefined;
@@ -252,6 +437,7 @@ export default function CreateEventPage() {
       };
       if (isPresident) {
         payload.assignedCommittee = assignedCommittee.filter(a => a.userId);
+        Object.assign(payload, getSafetyFilePayload());
       }
       if (isEdit && eventId) {
         await api.put(`/events/${eventId}`, payload);
@@ -585,6 +771,105 @@ export default function CreateEventPage() {
 
               {budgetMessage && (
                 <p className="mt-3 text-sm font-medium text-green-700">{budgetMessage}</p>
+              )}
+            </div>
+          )}
+
+          {isPresident && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="mb-4">
+                <h2 className="text-base font-semibold text-gray-700">Safety Files</h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Optional PDF warnings or precautions for events that need participant safety information.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Previous Safety Files</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedPreviousSafetyFileId}
+                      onChange={event => setSelectedPreviousSafetyFileId(event.target.value)}
+                      className="min-w-0 flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select saved PDF...</option>
+                      {availablePreviousSafetyFiles.map(file => {
+                        const fileId = getSafetyFileId(file);
+                        return (
+                          <option key={fileId || file.name} value={fileId}>
+                            {file.name} ({formatFileSize(file.size)})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={addPreviousSafetyFile}
+                      disabled={!canAddPreviousSafetyFile}
+                      className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition disabled:opacity-50"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Upload Safety PDFs</label>
+                  <input
+                    ref={safetyFileInputRef}
+                    type="file"
+                    multiple
+                    accept="application/pdf,.pdf"
+                    onChange={event => handleSafetyFileChange(event.target.files)}
+                    className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg bg-gray-50 border border-gray-100 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Attached Safety Files</p>
+                  {stagedSafetyFiles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearSafetyFiles}
+                      className="text-xs font-semibold text-gray-500 hover:text-red-600"
+                    >
+                      Remove all
+                    </button>
+                  )}
+                </div>
+                {stagedSafetyFiles.length === 0 ? (
+                  <p className="mt-2 text-sm text-gray-400">No safety files attached.</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {stagedSafetyFiles.map(file => (
+                      <div
+                        key={file.key}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-gray-700">{file.name}</p>
+                          <p className="text-xs text-gray-400">
+                            {file.source === 'saved' ? 'Saved PDF' : 'New PDF'} - {formatFileSize(file.size)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeStagedSafetyFile(file.key)}
+                          className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {safetyFileError && (
+                <p className="mt-3 text-sm font-medium text-red-600">{safetyFileError}</p>
               )}
             </div>
           )}
