@@ -59,15 +59,6 @@ const INCOME_SOURCE_CONFIG: Array<{ key: IncomeSourceKey; label: string; color: 
   { key: 'others', label: 'Others', color: '#64748b' },
 ];
 
-// const sidebarLinks = [
-//   { label: 'Dashboard', path: '/president/dashboard' },
-//   { label: 'Events', path: '/president/events' },
-//   { label: 'Tasks', path: null },
-//   { label: 'Budget', path: '/president/budget' },
-//   { label: 'Members', path: '/president/members' },
-//   { label: 'Safety Files', path: null },
-// ];
-
 const sidebarLinks = [
   { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
   { icon: '📅', label: 'Events', path: '/president/events' },
@@ -257,13 +248,13 @@ export default function PresidentBudgetPage() {
                   key={link.label}
                   href="#"
                   onClick={e => { e.preventDefault(); if (link.path) navigate(link.path); }}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
                     link.label === 'Budget'
-                      ? 'bg-yellow-50 font-medium text-yellow-800'
+                      ? 'bg-yellow-50 text-yellow-800 font-medium'
                       : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {link.label}
+                  {link.icon} {link.label}
                 </a>
               ))}
             </nav>
