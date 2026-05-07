@@ -34,6 +34,9 @@ export default function HomePage() {
                 assign responsibility, and help clubs run events without losing context.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                <Link to="/register" className="bg-blue-500 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-400 transition text-center">
+                  Explore Events
+                </Link>
                 <Link to="/contact" className="bg-white text-gray-950 font-semibold px-6 py-3 rounded-lg hover:bg-blue-50 transition text-center">
                   Start a Request
                 </Link>
@@ -76,6 +79,43 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="relative px-6 py-28 overflow-hidden bg-gray-950">
+        <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_18%_55%,#f97316,transparent_26%),radial-gradient(circle_at_78%_28%,#2563eb,transparent_28%)]" />
+        <div className="relative max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] gap-14 items-center">
+          <Reveal className="rounded-3xl overflow-hidden border border-white/10 bg-white/5 shadow-2xl scroll-slide-left">
+            <div className="aspect-[1.1/1] bg-[radial-gradient(circle_at_30%_28%,#fef3c7,transparent_18%),radial-gradient(circle_at_72%_38%,#fb923c,transparent_20%),linear-gradient(135deg,#0f172a,#1e3a8a_45%,#0f766e)] p-8 flex items-end">
+              <div className="w-full rounded-2xl bg-gray-950/60 border border-white/10 p-5 backdrop-blur">
+                <p className="text-sm uppercase tracking-[0.18em] text-orange-200 font-bold mb-3">For students</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {['Markets', 'Workshops', 'Socials'].map(label => (
+                    <div key={label} className="rounded-xl bg-white/10 p-3">
+                      <div className="h-16 rounded-lg bg-white/10 mb-3" />
+                      <p className="text-xs font-semibold text-gray-200">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Reveal>
+          <Reveal className="scroll-slide-right">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-orange-200 mb-4">Discover campus life</p>
+            <h2 className="text-4xl md:text-6xl font-black leading-tight mb-6">Find clubs, browse events, and keep track of what you are going to.</h2>
+            <p className="text-lg text-gray-300 leading-relaxed mb-8">
+              Members can choose their organisation, explore clubs in that community, RSVP to published events,
+              and keep a personal dashboard of upcoming and past activity.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link to="/register" className="bg-white text-gray-950 font-semibold px-6 py-3 rounded-lg hover:bg-orange-50 transition text-center">
+                Create a Member Account
+              </Link>
+              <Link to="/login" className="border border-white/30 text-white font-semibold px-6 py-3 rounded-lg hover:bg-white/10 transition text-center">
+                Sign In
+              </Link>
+            </div>
+          </Reveal>
         </div>
       </section>
 

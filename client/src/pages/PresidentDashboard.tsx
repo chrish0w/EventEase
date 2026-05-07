@@ -28,6 +28,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 const sidebarLinks = [
   { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
+  { icon: '←', label: 'Explore Portal', path: '/user/dashboard' },
   { icon: '📅', label: 'Events', path: '/president/events' },
   { icon: '✅', label: 'Tasks', path: null },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
@@ -107,13 +108,13 @@ export default function PresidentDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="president-workspace min-h-screen bg-[#201609]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
         {/* Sidebar */}
         <aside className="w-56 shrink-0">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Navigation</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{selectedClub?.clubName || 'Club'} Workspace</p>
             <nav className="space-y-1">
               {sidebarLinks.map((link) => (
                 <a
@@ -139,8 +140,8 @@ export default function PresidentDashboard() {
           <div className="bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl p-6 text-white mb-6 shadow">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold mb-1">Welcome, President {user?.name}! 👑</h1>
-                <p className="text-yellow-100 text-sm">You have full control of all club activities and events.</p>
+                <h1 className="text-2xl font-bold mb-1">{selectedClub?.clubName || 'Club'} President Workspace</h1>
+                <p className="text-yellow-100 text-sm">Welcome, President {user?.name}. You have full control of this club's activities and events.</p>
               </div>
               <span className="bg-white/20 border border-white/30 text-white text-xs font-semibold px-3 py-1 rounded-full">
                 President

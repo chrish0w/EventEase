@@ -40,6 +40,14 @@
     @apply p-6 border-b border-white/10;
   }
 
+  .dashboard-input {
+    @apply w-full rounded-xl border border-white/10 bg-[#08111f]/70 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-cyan-400;
+  }
+
+  .dashboard-muted-box {
+    @apply rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-slate-300;
+  }
+
   .scroll-slide-left {
     animation: scroll-slide-left 1s cubic-bezier(0.15, 0.75, 0.35, 1) both;
     animation-timeline: view();
@@ -209,4 +217,84 @@
   .scroll-depth-card {
     animation: none;
   }
+}
+
+.committee-workspace .bg-white,
+.president-workspace .bg-white,
+.org-workspace .bg-white,
+.super-admin-workspace .bg-white {
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+.committee-workspace .rounded-xl,
+.president-workspace .rounded-xl,
+.org-workspace .rounded-xl,
+.super-admin-workspace .rounded-xl {
+  border-radius: 1rem;
+}
+
+.committee-workspace main,
+.president-workspace main,
+.org-workspace main,
+.super-admin-workspace main {
+  color: #111827;
+}
+
+.committee-workspace > div,
+.president-workspace > div,
+.org-workspace > div,
+.super-admin-workspace > div {
+  position: relative;
+}
+
+.committee-workspace::before,
+.president-workspace::before,
+.org-workspace::before,
+.super-admin-workspace::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  z-index: 0;
+}
+
+.committee-workspace::before {
+  background:
+    radial-gradient(circle at 15% 12%, #7c3aed, transparent 28%),
+    radial-gradient(circle at 80% 8%, #db2777, transparent 26%),
+    linear-gradient(135deg, #140f24, #251445 48%, #111827);
+}
+
+.president-workspace::before {
+  background:
+    radial-gradient(circle at 16% 10%, #f59e0b, transparent 30%),
+    radial-gradient(circle at 82% 10%, #b45309, transparent 28%),
+    linear-gradient(135deg, #201609, #3b2508 48%, #111827);
+}
+
+.org-workspace::before {
+  background:
+    radial-gradient(circle at 12% 10%, #059669, transparent 28%),
+    radial-gradient(circle at 82% 8%, #0f766e, transparent 26%),
+    linear-gradient(135deg, #071b17, #0f2f2a 48%, #111827);
+}
+
+.super-admin-workspace::before {
+  background:
+    radial-gradient(circle at 14% 8%, #7c3aed, transparent 28%),
+    radial-gradient(circle at 82% 10%, #c026d3, transparent 26%),
+    linear-gradient(135deg, #130c24, #2e1065 48%, #111827);
+}
+
+.committee-workspace > nav,
+.committee-workspace > div,
+.president-workspace > nav,
+.president-workspace > div,
+.org-workspace > nav,
+.org-workspace > div,
+.super-admin-workspace > nav,
+.super-admin-workspace > div {
+  position: relative;
+  z-index: 1;
 }

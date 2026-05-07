@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import PublicNav from '../components/PublicNav';
+
+interface Organisation {
+  _id: string;
+  name: string;
+}
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -10,18 +15,26 @@ export default function Register() {
     email: '',
     password: '',
     studentId: '',
+    organisationId: '',
     role: 'user',
   });
+  const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    api.get('/club-registration-requests/organisations')
+      .then(res => setOrganisations(res.data))
+      .catch(() => setOrganisations([]));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const { data } = await api.post('/auth/register', form);
       login(data.token, data.user);
-      navigate('/clubs/join');
+      navigate('/user/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
     }
@@ -32,7 +45,7 @@ export default function Register() {
       <PublicNav />
 
       <main className="public-bg min-h-[calc(100vh-73px)] flex items-center justify-center px-4 py-16">
-        <div className="relative bg-gray-900/85 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-md backdrop-blur">
+        <div className="relative bg-gray-900/85 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-lg backdrop-blur">
         <div className="text-center mb-6">
           <h1 className="text-2xl font-bold text-blue-600">EventEase</h1>
           <p className="text-gray-400 text-sm mt-1">Create your account</p>
@@ -70,6 +83,21 @@ export default function Register() {
               value={form.studentId}
               onChange={e => setForm({ ...form, studentId: e.target.value })}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-200 mb-1">Organisation</label>
+            <select
+              className="form-input"
+              value={form.organisationId}
+              onChange={e => setForm({ ...form, organisationId: e.target.value })}
+              required
+            >
+              <option value="">Select your university or organisation</option>
+              {organisations.map(org => (
+                <option key={org._id} value={org._id}>{org.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">This controls which clubs and events you see after signing in.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-200 mb-1">Password</label>

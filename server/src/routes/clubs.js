@@ -6,6 +6,8 @@ const JoinRequest = require('../models/JoinRequest');
 const OrgAdminAssignment = require('../models/OrgAdminAssignment');
 const User = require('../models/User');
 const ClubInvitation = require('../models/ClubInvitation');
+const ClubFollow = require('../models/ClubFollow');
+const Event = require('../models/Event');
 
 async function getAdminOrgId(userId) {
   const a = await OrgAdminAssignment.findOne({ userId });
@@ -32,10 +34,114 @@ router.get('/', auth, async (req, res) => {
 router.get('/my', auth, async (req, res) => {
   try {
     const memberships = await ClubMembership.find({ userId: req.user.id })
-      .populate('clubId', 'name description');
+      .populate('clubId', 'name description category logoUrl orgId');
     res.json(memberships);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Browse clubs, defaulting to the current user's organisation but allowing all organisations.
+router.get('/browse', auth, async (req, res) => {
+  try {
+    const { orgId = 'mine' } = req.query;
+    const user = await User.findById(req.user.id, 'organisationId');
+    let organisationId = user?.organisationId;
+    if (!organisationId) {
+      const membership = await ClubMembership.findOne({ userId: req.user.id }).populate('clubId', 'orgId');
+      organisationId = membership?.clubId?.orgId;
+      if (organisationId && user) {
+        user.organisationId = organisationId;
+        await user.save();
+      }
+    }
+    const filter = {};
+    if (orgId === 'mine') {
+      if (!organisationId) return res.status(400).json({ message: 'No organisation selected' });
+      filter.orgId = organisationId;
+    } else if (orgId !== 'all') {
+      filter.orgId = orgId;
+    }
+    const [clubs, memberships, follows] = await Promise.all([
+      Club.find(filter).populate('createdBy', 'name email').populate('orgId', 'name').sort({ name: 1 }),
+      ClubMembership.find({ userId: req.user.id }),
+      ClubFollow.find({ userId: req.user.id }),
+    ]);
+    const membershipByClub = Object.fromEntries(memberships.map(m => [m.clubId.toString(), m]));
+    const followedClubIds = new Set(follows.map(f => f.clubId.toString()));
+    res.json(clubs.map(club => {
+      const membership = membershipByClub[club._id.toString()];
+      return {
+        ...club.toObject(),
+        membershipRole: membership?.role || null,
+        committeeRole: membership?.committeeRole || null,
+        following: followedClubIds.has(club._id.toString()),
+      };
+    }));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/following', auth, async (req, res) => {
+  try {
+    const follows = await ClubFollow.find({ userId: req.user.id })
+      .populate({ path: 'clubId', populate: { path: 'orgId', select: 'name' } })
+      .sort({ createdAt: -1 });
+    res.json(follows.filter(f => f.clubId).map(f => ({
+      _id: f._id,
+      club: { ...f.clubId.toObject(), following: true },
+    })));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/:id/detail', auth, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id).populate('orgId', 'name description');
+    if (!club) return res.status(404).json({ message: 'Club not found' });
+    const [follow, membership, followers, events] = await Promise.all([
+      ClubFollow.findOne({ userId: req.user.id, clubId: club._id }),
+      ClubMembership.findOne({ userId: req.user.id, clubId: club._id }),
+      ClubFollow.countDocuments({ clubId: club._id }),
+      Event.find({ clubId: club._id, status: 'published', date: { $gte: new Date() } })
+        .sort({ date: 1 })
+        .limit(6),
+    ]);
+    res.json({
+      ...club.toObject(),
+      following: Boolean(follow),
+      membershipRole: membership?.role || null,
+      followers,
+      upcomingEvents: events,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/:id/follow', auth, async (req, res) => {
+  try {
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: 'Club not found' });
+    const follow = await ClubFollow.findOneAndUpdate(
+      { userId: req.user.id, clubId: club._id },
+      { userId: req.user.id, clubId: club._id },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.status(201).json(follow);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.delete('/:id/follow', auth, async (req, res) => {
+  try {
+    await ClubFollow.findOneAndDelete({ userId: req.user.id, clubId: req.params.id });
+    res.json({ message: 'Club unfollowed' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 });
 
@@ -105,10 +211,10 @@ router.put('/:id', auth, async (req, res) => {
     if (!club) return res.status(404).json({ message: 'Club not found' });
     if (!orgId || club.orgId.toString() !== orgId.toString())
       return res.status(403).json({ message: 'Not your organisation' });
-    const { name, description, category, officialClubLink } = req.body;
+    const { name, description, category, officialClubLink, logoUrl } = req.body;
     const updated = await Club.findByIdAndUpdate(
       req.params.id,
-      { name, description, category, officialClubLink },
+      { name, description, category, officialClubLink, logoUrl },
       { new: true }
     );
     res.json(updated);
@@ -144,7 +250,18 @@ router.get('/org/users', auth, async (req, res) => {
       role: invitation.role,
       status: 'pending_invite',
     }));
-    res.json([...activeUsers, ...pendingUsers]);
+    const users = await User.find({ organisationId: orgId }, 'name email studentId role organisationId');
+    const seenUserIds = new Set(activeUsers.map(item => item.user?._id?.toString()).filter(Boolean));
+    const orgMembers = users
+      .filter(user => !seenUserIds.has(user._id.toString()) && user.role === 'user')
+      .map(user => ({
+        _id: `org-${user._id}`,
+        user,
+        club: null,
+        role: 'member',
+        status: 'org_member',
+      }));
+    res.json([...activeUsers, ...pendingUsers, ...orgMembers]);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
