@@ -8,15 +8,16 @@ interface Club {
   description?: string;
   category?: string;
   officialClubLink?: string;
+  logoUrl?: string;
 }
 
 interface ClubMember {
   _id: string;
   user: { name: string; email: string; studentId?: string };
-  club: { _id: string; name: string };
+  club: { _id: string; name: string } | null;
   role: string;
   committeeRole?: string;
-  status?: 'active' | 'pending_invite';
+  status?: 'active' | 'pending_invite' | 'org_member';
 }
 
 interface UserOption {
@@ -48,7 +49,7 @@ interface ClubRequest {
   status: 'awaiting_email_confirmation' | 'pending_review' | 'more_info_needed' | 'approved' | 'rejected';
 }
 
-const emptyClubForm = { name: '', description: '', category: '', officialClubLink: '' };
+const emptyClubForm = { name: '', description: '', category: '', officialClubLink: '', logoUrl: '' };
 
 export default function AdminDashboard() {
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -126,7 +127,7 @@ export default function AdminDashboard() {
     return members.filter(member => !query
       || member.user.name.toLowerCase().includes(query)
       || member.user.email.toLowerCase().includes(query)
-      || member.club.name.toLowerCase().includes(query)
+      || (member.club?.name || 'organisation member').toLowerCase().includes(query)
       || member.role.toLowerCase().includes(query)
       || (member.committeeRole || '').toLowerCase().includes(query));
   }, [members, memberSearch]);
@@ -212,11 +213,11 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="org-workspace min-h-screen bg-[#071b17]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-        <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-6 text-white shadow">
-          <h1 className="text-2xl font-bold mb-1">Org Admin Dashboard</h1>
+        <div className="bg-gradient-to-r from-emerald-800 to-slate-900 rounded-xl p-6 text-white shadow">
+          <h1 className="text-2xl font-bold mb-1">{organisation?.name || 'Organisation'} Admin Workspace</h1>
           <p className="text-gray-300 text-sm">
             Managing {organisation?.name || 'your organisation'}.
           </p>
@@ -295,6 +296,7 @@ export default function AdminDashboard() {
                   <Input label="Club Name" value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} />
                   <Input label="Category" value={form.category} onChange={v => setForm(p => ({ ...p, category: v }))} />
                   <Input label="Official Link" value={form.officialClubLink} onChange={v => setForm(p => ({ ...p, officialClubLink: v }))} />
+                  <Input label="Logo URL" value={form.logoUrl} onChange={v => setForm(p => ({ ...p, logoUrl: v }))} />
                   <Input label="Description" value={form.description} onChange={v => setForm(p => ({ ...p, description: v }))} />
                   <button type="submit" className="md:col-span-2 bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-blue-700 transition">Create Club</button>
                 </form>
@@ -308,6 +310,7 @@ export default function AdminDashboard() {
                         <Input label="Club Name" value={editForm.name} onChange={v => setEditForm(p => ({ ...p, name: v }))} />
                         <Input label="Category" value={editForm.category} onChange={v => setEditForm(p => ({ ...p, category: v }))} />
                         <Input label="Official Link" value={editForm.officialClubLink} onChange={v => setEditForm(p => ({ ...p, officialClubLink: v }))} />
+                        <Input label="Logo URL" value={editForm.logoUrl} onChange={v => setEditForm(p => ({ ...p, logoUrl: v }))} />
                         <Input label="Description" value={editForm.description} onChange={v => setEditForm(p => ({ ...p, description: v }))} />
                         <div className="md:col-span-2 flex gap-2">
                           <button onClick={() => handleUpdateClub(club._id)} className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg">Save</button>
@@ -321,7 +324,7 @@ export default function AdminDashboard() {
                             <p className="text-sm font-semibold text-gray-800">{club.name}</p>
                             <p className="text-xs text-gray-400">{club.category || 'No category'}{club.description ? ` · ${club.description}` : ''}</p>
                           </div>
-                          <button onClick={() => { setEditingClubId(club._id); setEditForm({ name: club.name, description: club.description || '', category: club.category || '', officialClubLink: club.officialClubLink || '' }); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg">Edit</button>
+                          <button onClick={() => { setEditingClubId(club._id); setEditForm({ name: club.name, description: club.description || '', category: club.category || '', officialClubLink: club.officialClubLink || '', logoUrl: club.logoUrl || '' }); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg">Edit</button>
                         </div>
                         <PresidentAssignment
                           clubId={club._id}
@@ -355,8 +358,10 @@ export default function AdminDashboard() {
                       <p className="text-xs text-gray-400">{member.user.email}</p>
                     </div>
                     <p className="text-sm text-gray-600 text-right">
-                      {member.role}{member.committeeRole ? ` (${member.committeeRole})` : ''} · {member.club.name}
+                      {member.role === 'member' ? 'Organisation member' : member.role}
+                      {member.committeeRole ? ` (${member.committeeRole})` : ''} · {member.club?.name || organisation?.name || 'Organisation'}
                       {'status' in member && member.status === 'pending_invite' ? ' · Pending invite' : ''}
+                      {'status' in member && member.status === 'org_member' ? ' · No club yet' : ''}
                     </p>
                   </div>
                 ))}
@@ -403,7 +408,7 @@ function ReadOnly({ label, value }: { label: string; value: string }) {
 }
 
 function getClubPresident(members: ClubMember[], clubId: string) {
-  return members.find(member => member.club._id === clubId && member.role === 'president')?.user || null;
+  return members.find(member => member.club?._id === clubId && member.role === 'president')?.user || null;
 }
 
 function PresidentAssignment({

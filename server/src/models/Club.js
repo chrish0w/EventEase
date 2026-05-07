@@ -5,6 +5,7 @@ const clubSchema = new mongoose.Schema({
   description: String,
   category: String,
   officialClubLink: String,
+  logoUrl: String,
   orgId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organisation', required: true },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });

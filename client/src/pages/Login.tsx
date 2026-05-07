@@ -17,7 +17,7 @@ export default function Login() {
       login(data.token, data.user);
       if (data.user.role === 'super_admin') navigate('/super-admin/dashboard');
       else if (data.user.role === 'admin') navigate('/admin/dashboard');
-      else navigate('/club-select');
+      else navigate('/user/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
     }

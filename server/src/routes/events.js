@@ -5,6 +5,8 @@ const Event = require('../models/Event');
 const Budget = require('../models/Budget');
 const BudgetDraft = require('../models/BudgetDraft');
 const ClubMembership = require('../models/ClubMembership');
+const User = require('../models/User');
+const EventRsvp = require('../models/EventRsvp');
 
 // Helper: get user's membership in a club
 async function getMembership(userId, clubId) {
@@ -124,6 +126,92 @@ router.get('/', auth, async (req, res) => {
     res.json(events);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Browse published events across the current user's organisation
+router.get('/browse/all', auth, async (req, res) => {
+  try {
+    const { orgId = 'mine' } = req.query;
+    const user = await User.findById(req.user.id, 'organisationId');
+    let organisationId = user?.organisationId;
+    if (!organisationId) {
+      const membership = await ClubMembership.findOne({ userId: req.user.id }).populate('clubId', 'orgId');
+      organisationId = membership?.clubId?.orgId;
+      if (organisationId && user) {
+        user.organisationId = organisationId;
+        await user.save();
+      }
+    }
+    const clubFilter = {};
+    if (orgId === 'mine') {
+      if (!organisationId) return res.status(400).json({ message: 'No organisation selected' });
+      clubFilter.orgId = organisationId;
+    } else if (orgId !== 'all') {
+      clubFilter.orgId = orgId;
+    }
+    const clubs = await Club.find(clubFilter, '_id name category logoUrl orgId');
+    const clubIds = clubs.map(club => club._id);
+    const events = await Event.find({ clubId: { $in: clubIds }, status: 'published' })
+      .populate({ path: 'clubId', select: 'name category logoUrl orgId', populate: { path: 'orgId', select: 'name' } })
+      .populate('createdBy', 'name email')
+      .sort({ date: 1 });
+    const rsvps = await EventRsvp.find({ userId: req.user.id, eventId: { $in: events.map(event => event._id) }, status: 'going' });
+    const rsvpIds = new Set(rsvps.map(rsvp => rsvp.eventId.toString()));
+    res.json(events.map(event => ({
+      ...event.toObject(),
+      rsvped: rsvpIds.has(event._id.toString()),
+    })));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/rsvps/my', auth, async (req, res) => {
+  try {
+    const rsvps = await EventRsvp.find({ userId: req.user.id, status: 'going' })
+      .populate({
+        path: 'eventId',
+        populate: { path: 'clubId', select: 'name category logoUrl' },
+      })
+      .sort({ createdAt: -1 });
+    res.json(rsvps.filter(rsvp => rsvp.eventId).map(rsvp => ({
+      _id: rsvp._id,
+      status: rsvp.status,
+      event: rsvp.eventId,
+    })));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/:id/rsvp', auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event || event.status !== 'published') return res.status(404).json({ message: 'Published event not found' });
+    const club = await Club.findById(event.clubId);
+    if (!club) return res.status(404).json({ message: 'Club not found' });
+    const rsvp = await EventRsvp.findOneAndUpdate(
+      { userId: req.user.id, eventId: event._id },
+      { userId: req.user.id, eventId: event._id, status: 'going' },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    res.status(201).json(rsvp);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.delete('/:id/rsvp', auth, async (req, res) => {
+  try {
+    await EventRsvp.findOneAndUpdate(
+      { userId: req.user.id, eventId: req.params.id },
+      { status: 'cancelled' },
+      { new: true }
+    );
+    res.json({ message: 'RSVP cancelled' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
   }
 });
 

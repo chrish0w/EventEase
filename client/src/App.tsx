@@ -24,12 +24,14 @@ import ContactPage from './pages/ContactPage';
 import AboutPage from './pages/AboutPage';
 import OrganisationRegistrationRequestPage from './pages/OrganisationRegistrationRequestPage';
 import ConfirmOrganisationRegistrationPage from './pages/ConfirmOrganisationRegistrationPage';
+import ScrollToTop from './components/ScrollToTop';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user, selectedClub } = useAuth();
   if (!token) return <Navigate to="/login" />;
   if (requiredRole === 'super_admin' && user?.role !== 'super_admin') return <Navigate to="/dashboard" />;
   if (requiredRole === 'admin' && user?.role !== 'admin') return <Navigate to="/club-select" />;
+  if (requiredRole === 'user' && user?.role === 'user') return <>{children}</>;
   if (requiredRole && !['admin', 'super_admin'].includes(requiredRole) && selectedClub?.role !== requiredRole) return <Navigate to="/club-select" />;
   return <>{children}</>;
 }
@@ -38,13 +40,14 @@ function RoleDashboard() {
   const { user } = useAuth();
   if (user?.role === 'super_admin') return <Navigate to="/super-admin/dashboard" />;
   if (user?.role === 'admin') return <Navigate to="/admin/dashboard" />;
-  return <Navigate to="/club-select" />;
+  return <Navigate to="/user/dashboard" />;
 }
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/about" element={<AboutPage />} />
