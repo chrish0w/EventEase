@@ -16,6 +16,14 @@ const workspaceSchema = new mongoose.Schema({
     url: String,
     kind: { type: String, enum: ['doc', 'sheet', 'form', 'slide', 'link'], default: 'link' },
   }],
+  files: [{
+    originalName: String,
+    filename: String,
+    size: Number,
+    mimetype: String,
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    uploadedAt: { type: Date, default: Date.now },
+  }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
 

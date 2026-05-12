@@ -1,9 +1,23 @@
 const router = require('express').Router();
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const auth = require('../middleware/auth');
 const Workspace = require('../models/Workspace');
 const Task = require('../models/Task');
 const Event = require('../models/Event');
 const ClubMembership = require('../models/ClubMembership');
+
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    cb(null, unique + path.extname(file.originalname));
+  },
+});
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 // Helper: load event + caller's club membership
 async function loadEventContext(userId, eventId) {
@@ -211,6 +225,91 @@ router.delete('/tasks/:id', auth, async (req, res) => {
     }
     await Task.findByIdAndDelete(task._id);
     res.json({ message: 'Task deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Files (scoped to a workspace)
+// ─────────────────────────────────────────────────────────────
+
+// List files
+router.get('/workspaces/:id/files', auth, async (req, res) => {
+  try {
+    const ws = await Workspace.findById(req.params.id)
+      .populate('files.uploadedBy', 'name email');
+    if (!ws) return res.status(404).json({ message: 'Workspace not found' });
+    const ctx = await loadEventContext(req.user.id, ws.eventId);
+    if (ctx.error) return res.status(ctx.error.status).json({ message: ctx.error.message });
+    res.json(ws.files);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Upload a file
+router.post('/workspaces/:id/files', auth, upload.single('file'), async (req, res) => {
+  try {
+    const ws = await Workspace.findById(req.params.id);
+    if (!ws) return res.status(404).json({ message: 'Workspace not found' });
+    const ctx = await loadEventContext(req.user.id, ws.eventId);
+    if (ctx.error) return res.status(ctx.error.status).json({ message: ctx.error.message });
+    if (!canActInWorkspace(ws, ctx.membership, req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    if (!req.file) return res.status(400).json({ message: 'No file provided' });
+
+    const fileDoc = {
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      uploadedBy: req.user.id,
+      uploadedAt: new Date(),
+    };
+    ws.files.push(fileDoc);
+    await ws.save();
+    const saved = await Workspace.findById(ws._id).populate('files.uploadedBy', 'name email');
+    res.status(201).json(saved.files[saved.files.length - 1]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Download / serve a file
+router.get('/workspaces/:id/files/:fileId/download', auth, async (req, res) => {
+  try {
+    const ws = await Workspace.findById(req.params.id);
+    if (!ws) return res.status(404).json({ message: 'Workspace not found' });
+    const ctx = await loadEventContext(req.user.id, ws.eventId);
+    if (ctx.error) return res.status(ctx.error.status).json({ message: ctx.error.message });
+    const fileDoc = ws.files.id(req.params.fileId);
+    if (!fileDoc) return res.status(404).json({ message: 'File not found' });
+    const filePath = path.join(UPLOADS_DIR, fileDoc.filename);
+    res.download(filePath, fileDoc.originalName);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete a file
+router.delete('/workspaces/:id/files/:fileId', auth, async (req, res) => {
+  try {
+    const ws = await Workspace.findById(req.params.id);
+    if (!ws) return res.status(404).json({ message: 'Workspace not found' });
+    const ctx = await loadEventContext(req.user.id, ws.eventId);
+    if (ctx.error) return res.status(ctx.error.status).json({ message: ctx.error.message });
+    if (!canActInWorkspace(ws, ctx.membership, req.user.id)) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    const fileDoc = ws.files.id(req.params.fileId);
+    if (!fileDoc) return res.status(404).json({ message: 'File not found' });
+    const filePath = path.join(UPLOADS_DIR, fileDoc.filename);
+    ws.files.pull(req.params.fileId);
+    await ws.save();
+    fs.unlink(filePath, () => {});
+    res.json({ message: 'File deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
