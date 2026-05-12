@@ -4,7 +4,7 @@ import Navbar from '../components/Navbar';
 import api from '../api/axios';
 
 interface Stats {
-  totalClubs: number;
+  totalOrgs: number;
   totalUsers: number;
   totalAdmins: number;
 }
@@ -20,14 +20,15 @@ export default function SuperAdminDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="super-admin-workspace min-h-screen bg-[#130c24]">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        <div className="bg-gradient-to-r from-purple-800 to-purple-900 rounded-xl p-6 text-white mb-6 shadow">
+      <div className="relative max-w-5xl mx-auto px-6 py-8">
+        <div className="bg-gradient-to-r from-violet-900 via-fuchsia-900 to-slate-950 rounded-2xl p-7 text-white mb-6 shadow-2xl border border-white/10">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold mb-1">Super Admin Dashboard</h1>
-              <p className="text-purple-200 text-sm">Platform-wide governance and control.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-fuchsia-200 mb-3">Platform Governance</p>
+              <h1 className="text-3xl font-black mb-2">Super Admin Dashboard</h1>
+              <p className="text-purple-100 text-sm">Approve organisations, manage admins, and review platform-wide roles.</p>
             </div>
             <span className="bg-white/20 border border-white/30 text-white text-xs font-semibold px-3 py-1 rounded-full">
               Super Admin
@@ -38,34 +39,42 @@ export default function SuperAdminDashboard() {
         {stats && (
           <div className="grid grid-cols-3 gap-4 mb-6">
             {[
-              { label: 'Total Clubs', value: stats.totalClubs },
+              { label: 'Total Organisations', value: stats.totalOrgs },
               { label: 'Total Users', value: stats.totalUsers },
               { label: 'Org Admins', value: stats.totalAdmins },
             ].map(s => (
-              <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-center">
-                <p className="text-3xl font-bold text-purple-700">{s.value}</p>
-                <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+              <div key={s.label} className="bg-white/95 rounded-2xl border border-purple-100 shadow-xl p-5 text-center">
+                <p className="text-3xl font-black text-violet-800">{s.value}</p>
+                <p className="text-sm text-slate-500 mt-1">{s.label}</p>
               </div>
             ))}
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
-            onClick={() => navigate('/super-admin/organisations')}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-left hover:border-purple-300 hover:shadow-md transition"
+            onClick={() => navigate('/super-admin/organisation-requests')}
+            className="bg-white/95 rounded-2xl border border-purple-100 shadow-xl p-6 text-left hover:border-fuchsia-300 hover:-translate-y-1 transition"
           >
-            <div className="text-2xl mb-2">🏫</div>
-            <p className="font-semibold text-gray-800">Organisation Management</p>
-            <p className="text-sm text-gray-400 mt-1">Create, edit, or delete clubs.</p>
+            <div className="text-2xl mb-2">📨</div>
+            <p className="font-bold text-slate-900">Organisation Requests</p>
+            <p className="text-sm text-slate-500 mt-1">Review new organisation workspace requests.</p>
           </button>
           <button
-            onClick={() => navigate('/super-admin/org-admins')}
-            className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 text-left hover:border-purple-300 hover:shadow-md transition"
+            onClick={() => navigate('/super-admin/organisations')}
+            className="bg-white/95 rounded-2xl border border-purple-100 shadow-xl p-6 text-left hover:border-fuchsia-300 hover:-translate-y-1 transition"
+          >
+            <div className="text-2xl mb-2">🏫</div>
+            <p className="font-bold text-slate-900">Organisation Management</p>
+            <p className="text-sm text-slate-500 mt-1">View universities and assign organisation admins.</p>
+          </button>
+          <button
+            onClick={() => navigate('/super-admin/users')}
+            className="bg-white/95 rounded-2xl border border-purple-100 shadow-xl p-6 text-left hover:border-fuchsia-300 hover:-translate-y-1 transition sm:col-span-2"
           >
             <div className="text-2xl mb-2">👤</div>
-            <p className="font-semibold text-gray-800">Org Admin Management</p>
-            <p className="text-sm text-gray-400 mt-1">Assign or manage platform admins.</p>
+            <p className="font-bold text-slate-900">Users & Roles</p>
+            <p className="text-sm text-slate-500 mt-1">Search users and review their platform or club roles.</p>
           </button>
         </div>
       </div>

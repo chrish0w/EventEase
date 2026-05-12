@@ -8,9 +8,10 @@ interface User {
   name: string;
   email: string;
   role: string;
+  orgId?: string | null;
 }
 
-interface Club {
+interface Organisation {
   _id: string;
   name: string;
 }
@@ -18,44 +19,48 @@ interface Club {
 export default function SuperAdminOrgAdminsPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
-  const [clubs, setClubs] = useState<Club[]>([]);
+  const [orgs, setOrgs] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assignMap, setAssignMap] = useState<Record<string, string>>({});
+  const [promoteOrgMap, setPromoteOrgMap] = useState<Record<string, string>>({});
 
-  useEffect(() => {
+  const fetchData = () => {
     Promise.all([
       api.get('/super-admin/users'),
-      api.get('/super-admin/clubs'),
-    ]).then(([usersRes, clubsRes]) => {
+      api.get('/super-admin/organisations'),
+    ]).then(([usersRes, orgsRes]) => {
       setUsers(usersRes.data);
-      setClubs(clubsRes.data);
+      setOrgs(orgsRes.data);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  };
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
+  useEffect(() => { fetchData(); }, []);
+
+  const handleAssignOrgAdmin = async (userId: string) => {
+    const orgId = promoteOrgMap[userId];
+    if (!orgId) return alert('Please select an organisation first');
     try {
-      const res = await api.put(`/super-admin/users/${userId}/role`, { role: newRole });
-      setUsers(prev => prev.map(u => u._id === userId ? { ...u, role: res.data.role } : u));
+      await api.put(`/super-admin/users/${userId}/assign-org-admin`, { orgId });
+      fetchData();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      alert(msg || 'Failed to update role');
+      alert(msg || 'Failed to assign org admin');
     }
   };
 
-  const handleAssignPresident = async (clubId: string) => {
-    const userId = assignMap[clubId];
-    if (!userId) return alert('Please select a user first');
+  const handleRemoveOrgAdmin = async (userId: string) => {
     try {
-      await api.post(`/super-admin/clubs/${clubId}/assign-president`, { userId });
-      alert('President assigned successfully');
+      await api.put(`/super-admin/users/${userId}/remove-org-admin`);
+      fetchData();
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      alert(msg || 'Failed to assign president');
+      alert(msg || 'Failed to remove org admin');
     }
   };
 
   const admins = users.filter(u => u.role === 'admin');
-  const regularUsers = users.filter(u => !['admin', 'super_admin'].includes(u.role));
+  const regularUsers = users.filter(u => u.role !== 'admin');
+
+  const orgNameById = (id?: string | null) => orgs.find(o => o._id === id?.toString())?.name || 'Unknown';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,9 +76,9 @@ export default function SuperAdminOrgAdminsPage() {
         ) : (
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Platform Admins ({admins.length})</h2>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Current Org Admins ({admins.length})</h2>
               {admins.length === 0 ? (
-                <p className="text-sm text-gray-400">No admins yet.</p>
+                <p className="text-sm text-gray-400">No org admins yet.</p>
               ) : (
                 <div className="divide-y divide-gray-50">
                   {admins.map(u => (
@@ -81,12 +86,13 @@ export default function SuperAdminOrgAdminsPage() {
                       <div>
                         <p className="text-sm font-medium text-gray-800">{u.name}</p>
                         <p className="text-xs text-gray-400">{u.email}</p>
+                        <p className="text-xs text-purple-500 mt-0.5">Org: {orgNameById(u.orgId?.toString())}</p>
                       </div>
                       <button
-                        onClick={() => handleRoleChange(u._id, 'user')}
+                        onClick={() => handleRemoveOrgAdmin(u._id)}
                         className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
                       >
-                        Remove Admin
+                        Remove
                       </button>
                     </div>
                   ))}
@@ -95,52 +101,39 @@ export default function SuperAdminOrgAdminsPage() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Promote User to Admin</h2>
-              <div className="divide-y divide-gray-50">
-                {regularUsers.map(u => (
-                  <div key={u._id} className="py-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{u.name}</p>
-                      <p className="text-xs text-gray-400">{u.email} · {u.role}</p>
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Assign Org Admin</h2>
+              {regularUsers.length === 0 ? (
+                <p className="text-sm text-gray-400">No users available.</p>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {regularUsers.map(u => (
+                    <div key={u._id} className="py-3">
+                      <div className="mb-2">
+                        <p className="text-sm font-medium text-gray-800">{u.name}</p>
+                        <p className="text-xs text-gray-400">{u.email} · {u.role}</p>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={promoteOrgMap[u._id] || ''}
+                          onChange={e => setPromoteOrgMap(p => ({ ...p, [u._id]: e.target.value }))}
+                          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="">Select organisation...</option>
+                          {orgs.map(o => (
+                            <option key={o._id} value={o._id}>{o.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignOrgAdmin(u._id)}
+                          className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition whitespace-nowrap"
+                        >
+                          Assign as Org Admin
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleRoleChange(u._id, 'admin')}
-                      className="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition"
-                    >
-                      Make Admin
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Assign Club Presidents</h2>
-              <div className="divide-y divide-gray-50">
-                {clubs.map(club => (
-                  <div key={club._id} className="py-4">
-                    <p className="text-sm font-semibold text-gray-800 mb-2">{club.name}</p>
-                    <div className="flex gap-2 items-center">
-                      <select
-                        value={assignMap[club._id] || ''}
-                        onChange={e => setAssignMap(p => ({ ...p, [club._id]: e.target.value }))}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      >
-                        <option value="">Select user...</option>
-                        {users.map(u => (
-                          <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={() => handleAssignPresident(club._id)}
-                        className="text-sm bg-yellow-500 text-white px-3 py-1.5 rounded-lg hover:bg-yellow-600 transition font-medium"
-                      >
-                        Assign President
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

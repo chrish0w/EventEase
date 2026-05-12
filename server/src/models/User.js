@@ -6,6 +6,9 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   studentId: String,
+  organisationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organisation' },
+  profileImage: String,
+  bio: String,
   role: { type: String, enum: ['user', 'committee', 'president', 'admin', 'super_admin'], default: 'user' },
 }, { timestamps: true });
 
