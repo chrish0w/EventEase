@@ -52,6 +52,14 @@ interface TemplateItem {
   description: string;
 }
 
+interface BudgetLineItem {
+  _id?: string;
+  description: string;
+  assignedAmount: number;
+  actualAmount: number;
+  notes: string;
+}
+
 const COLUMNS: { key: Task['status']; label: string; tone: string; dropTone: string }[] = [
   { key: 'todo',        label: 'To do',       tone: 'bg-gray-50 border-gray-200',   dropTone: 'ring-gray-400' },
   { key: 'in_progress', label: 'In progress', tone: 'bg-blue-50 border-blue-200',   dropTone: 'ring-blue-400' },
@@ -124,6 +132,10 @@ export default function WorkspaceDetailPage() {
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [budgetItems, setBudgetItems] = useState<BudgetLineItem[]>([]);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetMsg, setBudgetMsg] = useState('');
+  const [budgetDirty, setBudgetDirty] = useState(false);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -152,6 +164,24 @@ export default function WorkspaceDetailPage() {
       .then(res => setMembers(res.data))
       .catch(() => {});
   }, [selectedClub, isPresident]);
+
+  useEffect(() => {
+    if (!workspace || workspace.type !== 'budget' || !isPresident || !selectedClub?.clubId) return;
+    api.get(`/budget/event/${workspace.eventId}?clubId=${selectedClub.clubId}`)
+      .then(res => {
+        setBudgetItems(res.data.event.lineItems.map((item: BudgetLineItem) => ({
+          _id: item._id,
+          description: item.description,
+          assignedAmount: item.assignedAmount,
+          actualAmount: item.actualAmount,
+          notes: item.notes,
+        })));
+      })
+      .catch((err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setBudgetMsg(msg || 'Failed to load budget data.');
+      });
+  }, [workspace, isPresident, selectedClub]);
 
   const canActInWorkspace = useMemo(() => {
     if (!workspace || !user) return false;
@@ -276,6 +306,51 @@ export default function WorkspaceDetailPage() {
       setFiles(prev => prev.filter(f => f._id !== fileId));
     } catch {
       alert('Failed to delete file.');
+    }
+  };
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount);
+
+  const updateBudgetItem = (idx: number, field: keyof BudgetLineItem, value: string | number) => {
+    setBudgetItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+    setBudgetDirty(true);
+  };
+
+  const addBudgetItem = () => {
+    setBudgetItems(prev => [...prev, { description: '', assignedAmount: 0, actualAmount: 0, notes: '' }]);
+    setBudgetDirty(true);
+  };
+
+  const removeBudgetItem = (idx: number) => {
+    setBudgetItems(prev => prev.filter((_, i) => i !== idx));
+    setBudgetDirty(true);
+  };
+
+  const saveBudget = async () => {
+    if (!workspace || !selectedClub?.clubId) return;
+    setBudgetSaving(true);
+    setBudgetMsg('');
+    try {
+      const res = await api.put(`/budget/event/${workspace.eventId}`, {
+        clubId: selectedClub.clubId,
+        lineItems: budgetItems,
+      });
+      setBudgetItems(res.data.event.lineItems.map((item: BudgetLineItem) => ({
+        _id: item._id,
+        description: item.description,
+        assignedAmount: item.assignedAmount,
+        actualAmount: item.actualAmount,
+        notes: item.notes,
+      })));
+      setBudgetDirty(false);
+      setBudgetMsg('Saved!');
+      setTimeout(() => setBudgetMsg(''), 3000);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setBudgetMsg(msg || 'Failed to save budget.');
+    } finally {
+      setBudgetSaving(false);
     }
   };
 
@@ -422,6 +497,120 @@ export default function WorkspaceDetailPage() {
               </button>
             </div>
           </form>
+        )}
+
+        {/* Budget line items — only visible on budget workspace for presidents */}
+        {workspace.type === 'budget' && isPresident && (
+          <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-800">💰 Budget Line Items</h2>
+              <div className="flex items-center gap-3">
+                {budgetMsg && (
+                  <span className={`text-xs font-medium ${budgetMsg === 'Saved!' ? 'text-green-600' : 'text-red-500'}`}>
+                    {budgetMsg}
+                  </span>
+                )}
+                {budgetDirty && (
+                  <button
+                    onClick={saveBudget}
+                    disabled={budgetSaving}
+                    className="px-4 py-1.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                  >
+                    {budgetSaving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                )}
+                <button
+                  onClick={addBudgetItem}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                >
+                  + Add Item
+                </button>
+              </div>
+            </div>
+            {budgetItems.length === 0 ? (
+              <p className="text-sm text-gray-400">No budget items yet. Click "+ Add Item" to get started.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                      <th className="pb-2 pr-3">Description</th>
+                      <th className="pb-2 pr-3 text-right whitespace-nowrap">Budgeted (AUD)</th>
+                      <th className="pb-2 pr-3 text-right whitespace-nowrap">Actual (AUD)</th>
+                      <th className="pb-2 pr-3">Notes</th>
+                      <th className="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {budgetItems.map((item, idx) => {
+                      const isNew = !item._id;
+                      return (
+                        <tr key={idx} className="group">
+                          <td className="py-2 pr-3">
+                            <input
+                              value={item.description}
+                              onChange={e => updateBudgetItem(idx, 'description', e.target.value)}
+                              placeholder="e.g. Venue hire"
+                              className="w-full border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent"
+                            />
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            {isNew ? (
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.assignedAmount}
+                                onChange={e => updateBudgetItem(idx, 'assignedAmount', parseFloat(e.target.value) || 0)}
+                                className="w-24 border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent text-right"
+                              />
+                            ) : (
+                              <span className="text-gray-500 text-xs">{formatCurrency(item.assignedAmount)}</span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-3 text-right">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.actualAmount}
+                              onChange={e => updateBudgetItem(idx, 'actualAmount', parseFloat(e.target.value) || 0)}
+                              className="w-24 border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent text-right"
+                            />
+                          </td>
+                          <td className="py-2 pr-3">
+                            <input
+                              value={item.notes}
+                              onChange={e => updateBudgetItem(idx, 'notes', e.target.value)}
+                              placeholder="—"
+                              className="w-full border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent text-gray-500"
+                            />
+                          </td>
+                          <td className="py-2 text-right">
+                            <button
+                              onClick={() => removeBudgetItem(idx)}
+                              className="text-gray-300 hover:text-red-500 transition text-sm opacity-0 group-hover:opacity-100"
+                              title="Remove"
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="text-xs font-semibold text-gray-600 border-t border-gray-200">
+                      <td className="pt-2 pr-3">Total</td>
+                      <td className="pt-2 pr-3 text-right">{formatCurrency(budgetItems.reduce((s, i) => s + i.assignedAmount, 0))}</td>
+                      <td className="pt-2 pr-3 text-right">{formatCurrency(budgetItems.reduce((s, i) => s + i.actualAmount, 0))}</td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Board area: optional template sidebar + kanban */}
