@@ -28,8 +28,8 @@ async function recalculateRemainingBudget(clubId) {
   if (!club) return;
 
   const totalSpending = budgets.reduce((sum, budget) => sum + Number(budget.actualAmount || 0), 0);
-  club.remainingBudget = Number(club.totalBudget || 0) - totalSpending;
-  await club.save();
+  const remainingBudget = Number(club.totalBudget || 0) - totalSpending;
+  await Club.updateOne({ _id: club._id }, { $set: { remainingBudget } });
 }
 
 // Get club members for committee assignment (president only) — before /:id

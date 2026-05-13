@@ -81,7 +81,8 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-AU', {
     style: 'currency',
     currency: 'AUD',
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value || 0);
 }
 
@@ -154,10 +155,13 @@ export default function PresidentBudgetPage() {
   });
   const [savingIncome, setSavingIncome] = useState(false);
   const [detailsEvent, setDetailsEvent] = useState<BudgetEvent | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  useEffect(() => {
+  const fetchBudget = () => {
     if (!selectedClub?.clubId) return;
     setLoading(true);
+    setError('');
+    setDetailsEvent(null);
     api.get<BudgetResponse>(`/budget?clubId=${selectedClub.clubId}`)
       .then(res => {
         const incomeSources = { ...EMPTY_INCOME_SOURCES, ...(res.data.incomeSources || {}) };
@@ -165,6 +169,20 @@ export default function PresidentBudgetPage() {
       })
       .catch(() => setError('Failed to load budget.'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchBudget();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClub, refreshTick]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchBudget();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedClub]);
 
   const incomeSources = budget?.incomeSources || EMPTY_INCOME_SOURCES;
@@ -277,6 +295,15 @@ export default function PresidentBudgetPage() {
                 <p className="text-sm font-medium text-gray-500">{selectedClub?.clubName || 'Club'}</p>
                 <h1 className="mt-1 text-3xl font-bold text-gray-900">Budget</h1>
               </div>
+              <button
+                type="button"
+                onClick={() => setRefreshTick(t => t + 1)}
+                disabled={loading}
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-50 disabled:opacity-40"
+                title="Refresh budget data"
+              >
+                {loading ? 'Loading…' : '↻ Refresh'}
+              </button>
               <div className="grid grid-cols-3 gap-3 text-right">
                 <div className="rounded-lg bg-slate-50 px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Club Funds</p>

@@ -132,7 +132,7 @@ function RolePanel({ role, event }: { role: string; event: Event }) {
   );
 }
 
-function EventCard({ event, myRole }: { event: Event; myRole: string }) {
+function EventCard({ event, myRole, onOpenWorkspaces }: { event: Event; myRole: string; onOpenWorkspaces: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const dateStr = new Date(event.date).toLocaleDateString('en-AU', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -162,12 +162,20 @@ function EventCard({ event, myRole }: { event: Event; myRole: string }) {
             {event.capacity && <span>👥 {event.capacity} capacity</span>}
           </div>
         </div>
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="ml-4 text-gray-400 hover:text-gray-600 transition text-lg"
-        >
-          {expanded ? '▲' : '▼'}
-        </button>
+        <div className="flex items-center gap-3 ml-4 shrink-0">
+          <button
+            onClick={onOpenWorkspaces}
+            className="text-xs text-purple-500 hover:text-purple-700 transition"
+          >
+            Workspaces
+          </button>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="text-gray-400 hover:text-gray-600 transition text-lg"
+          >
+            {expanded ? '▲' : '▼'}
+          </button>
+        </div>
       </div>
 
       {expanded && <RolePanel role={myRole} event={event} />}
@@ -245,7 +253,12 @@ export default function CommitteeEventsPage() {
           ) : (
             <div className="space-y-4">
               {events.map(event => (
-                <EventCard key={event._id} event={event} myRole={getMyRole(event)} />
+                <EventCard
+                  key={event._id}
+                  event={event}
+                  myRole={getMyRole(event)}
+                  onOpenWorkspaces={() => navigate(`/committee/events/${event._id}/workspaces`)}
+                />
               ))}
             </div>
           )}

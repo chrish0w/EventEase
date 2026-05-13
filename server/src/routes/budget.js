@@ -74,8 +74,8 @@ function getTotalSpending(budgets = []) {
 async function syncRemainingBudget(club, budgets = []) {
   const remainingBudget = Number(club.totalBudget || 0) - getTotalSpending(budgets);
   if (Number(club.remainingBudget || 0) !== remainingBudget) {
+    await Club.updateOne({ _id: club._id }, { $set: { remainingBudget } });
     club.remainingBudget = remainingBudget;
-    await club.save();
   }
   return remainingBudget;
 }
@@ -200,7 +200,7 @@ router.patch('/total', auth, async (req, res) => {
       club.totalBudget = Number(totalBudget ?? club.totalBudget ?? 0);
     }
     club.remainingBudget = club.totalBudget - totalSpending;
-    await club.save();
+    await Club.updateOne({ _id: club._id }, { $set: { totalBudget: club.totalBudget, remainingBudget: club.remainingBudget, incomeSources: club.incomeSources } });
 
     res.json({
       totalBudget: club.totalBudget,
@@ -235,7 +235,7 @@ router.patch('/income', auth, async (req, res) => {
     club.incomeSources = addIncomeSources(club.incomeSources, incomeAdditions);
     club.totalBudget = Number(club.totalBudget ?? 0) + addedIncome;
     club.remainingBudget = club.totalBudget - totalSpending;
-    await club.save();
+    await Club.updateOne({ _id: club._id }, { $set: { totalBudget: club.totalBudget, remainingBudget: club.remainingBudget, incomeSources: club.incomeSources } });
 
     res.json({
       totalBudget: club.totalBudget,
@@ -344,7 +344,7 @@ router.put('/', auth, async (req, res) => {
 
     club.totalBudget = Number(totalBudget ?? club.totalBudget ?? 0);
     club.remainingBudget = club.totalBudget - totalSpending;
-    await club.save();
+    await Club.updateOne({ _id: club._id }, { $set: { totalBudget: club.totalBudget, remainingBudget: club.remainingBudget } });
 
     const budgetByEventId = new Map(savedBudgets.map((budget) => [budget.eventId.toString(), budget]));
 
@@ -381,31 +381,15 @@ router.put('/event/:eventId', auth, async (req, res) => {
       return res.status(403).json({ message: 'President only' });
     }
 
-    const [club, event, existingBudget] = await Promise.all([
+    const [club, event] = await Promise.all([
       Club.findById(clubId),
       Event.findOne({ _id: eventId, clubId }, '_id title date category'),
-      Budget.findOne({ clubId, eventId }),
     ]);
 
     if (!club) return res.status(404).json({ message: 'Club not found' });
     if (!event) return res.status(404).json({ message: 'Event not found' });
 
-    const existingLineItemById = new Map((existingBudget?.lineItems ?? []).map((item) => [
-      item._id.toString(),
-      item,
-    ]));
-    const lineItemsWithLockedAssignedAmounts = lineItems.map((item) => {
-      const existingLineItem = item._id ? existingLineItemById.get(String(item._id)) : null;
-      if (!existingLineItem) return item;
-
-      return {
-        ...item,
-        assignedAmount: existingLineItem.budgetedAmount,
-        budgetedAmount: existingLineItem.budgetedAmount,
-      };
-    });
-
-    const sanitizedLineItems = sanitizeLineItems(lineItemsWithLockedAssignedAmounts);
+    const sanitizedLineItems = sanitizeLineItems(lineItems);
     const totals = getTotals(sanitizedLineItems);
 
     if (sanitizedLineItems.length === 0) {
@@ -429,7 +413,7 @@ router.put('/event/:eventId', auth, async (req, res) => {
 
     club.totalBudget = Number(totalBudget ?? club.totalBudget ?? 0);
     club.remainingBudget = club.totalBudget - totalSpending;
-    await club.save();
+    await Club.updateOne({ _id: club._id }, { $set: { totalBudget: club.totalBudget, remainingBudget: club.remainingBudget } });
 
     const savedBudget = savedBudgets.find((budget) => budget.eventId.toString() === String(eventId));
 

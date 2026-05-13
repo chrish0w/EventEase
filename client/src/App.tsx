@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import PresidentMembersPage from './pages/PresidentMembersPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SuperAdminOrgsPage from './pages/SuperAdminOrgsPage';
+import SuperAdminOrgAdminsPage from './pages/SuperAdminOrgAdminsPage';
 import SuperAdminUsersPage from './pages/SuperAdminUsersPage';
 import SuperAdminOrganisationRequestsPage from './pages/SuperAdminOrganisationRequestsPage';
 import ClubRegistrationRequestPage from './pages/ClubRegistrationRequestPage';
@@ -25,6 +26,8 @@ import AboutPage from './pages/AboutPage';
 import OrganisationRegistrationRequestPage from './pages/OrganisationRegistrationRequestPage';
 import ConfirmOrganisationRegistrationPage from './pages/ConfirmOrganisationRegistrationPage';
 import ScrollToTop from './components/ScrollToTop';
+import EventWorkspacesPage from './pages/EventWorkspacesPage';
+import WorkspaceDetailPage from './pages/WorkspaceDetailPage';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user, selectedClub } = useAuth();
@@ -75,6 +78,9 @@ export default function App() {
           <Route path="/president/events/:id/edit" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />
           <Route path="/president/members" element={<PrivateRoute requiredRole="president"><PresidentMembersPage /></PrivateRoute>} />
+          <Route path="/president/events/:id/workspaces" element={<PrivateRoute requiredRole="president"><EventWorkspacesPage /></PrivateRoute>} />
+          <Route path="/committee/events/:id/workspaces" element={<PrivateRoute requiredRole="committee"><EventWorkspacesPage /></PrivateRoute>} />
+          <Route path="/workspaces/:id" element={<PrivateRoute><WorkspaceDetailPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

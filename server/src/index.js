@@ -16,6 +16,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/clubs', require('./routes/clubs'));
 app.use('/api/super-admin', require('./routes/superAdmin'));
+app.use('/api', require('./routes/workspaces'));
 app.use('/api/budget', require('./routes/budget'));
 app.use('/api/club-registration-requests', require('./routes/clubRegistrationRequests'));
 app.use('/api/organisation-registration-requests', require('./routes/organisationRegistrationRequests'));
