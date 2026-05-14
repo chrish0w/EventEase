@@ -1,4 +1,6 @@
 const router = require('express').Router();
+const path = require('path');
+const fs = require('fs');
 const auth = require('../middleware/auth');
 const Club = require('../models/Club');
 const Event = require('../models/Event');
@@ -9,13 +11,25 @@ const User = require('../models/User');
 const EventRsvp = require('../models/EventRsvp');
 const DisclaimerTemplate = require('../models/DisclaimerTemplate');
 
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+
+async function copyDisclaimerFile(srcRelPath, eventId) {
+  const srcAbs = path.join(UPLOADS_DIR, path.basename(srcRelPath));
+  const destName = `disclaimer-event-${eventId}.pdf`;
+  const destAbs = path.join(UPLOADS_DIR, destName);
+  await fs.promises.copyFile(srcAbs, destAbs);
+  return `uploads/${destName}`;
+}
+
 async function applyDisclaimerSnapshot(payload, clubId) {
   if (!payload) return payload;
   const requires = payload.requiresSafetyDisclaimer === true;
   if (!requires) {
     payload.disclaimerTemplateId = null;
     payload.disclaimerTitle = null;
+    payload.disclaimerType = 'text';
     payload.disclaimerContent = null;
+    payload.disclaimerFileUrl = null;
     return payload;
   }
   if (!payload.disclaimerTemplateId) {
@@ -30,7 +44,14 @@ async function applyDisclaimerSnapshot(payload, clubId) {
     throw err;
   }
   payload.disclaimerTitle = template.title;
-  payload.disclaimerContent = template.content;
+  payload.disclaimerType = template.type;
+  if (template.type === 'text') {
+    payload.disclaimerContent = template.content;
+    payload.disclaimerFileUrl = null;
+  } else {
+    payload.disclaimerContent = null;
+    payload.__pendingDisclaimerFileCopy = template.fileUrl;
+  }
   return payload;
 }
 
@@ -93,8 +114,20 @@ router.post('/', auth, async (req, res) => {
     const eventPayload = { ...req.body };
     delete eventPayload.budgetDraftId;
     await applyDisclaimerSnapshot(eventPayload, clubId);
+    const pendingFileCopy = eventPayload.__pendingDisclaimerFileCopy;
+    delete eventPayload.__pendingDisclaimerFileCopy;
 
     const event = await Event.create({ ...eventPayload, createdBy: req.user.id });
+
+    if (pendingFileCopy) {
+      try {
+        event.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, event._id);
+        await event.save();
+      } catch (copyErr) {
+        await Event.findByIdAndDelete(event._id);
+        throw copyErr;
+      }
+    }
 
     if (budgetDraft) {
       const totals = getTotals(budgetDraft.lineItems);
@@ -275,6 +308,20 @@ router.put('/:id', auth, async (req, res) => {
         Object.assign(updatePayload, { requiresSafetyDisclaimer: requires, disclaimerTemplateId: templateId }),
         event.clubId
       );
+      const pendingFileCopy = updatePayload.__pendingDisclaimerFileCopy;
+      delete updatePayload.__pendingDisclaimerFileCopy;
+      if (pendingFileCopy) {
+        // Remove the previous event file (if any) before writing the new one
+        if (event.disclaimerFileUrl) {
+          const oldAbs = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
+          fs.promises.unlink(oldAbs).catch(() => {});
+        }
+        updatePayload.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, event._id);
+      } else if (updatePayload.disclaimerType === 'text' && event.disclaimerFileUrl) {
+        const oldAbs = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
+        fs.promises.unlink(oldAbs).catch(() => {});
+        updatePayload.disclaimerFileUrl = null;
+      }
     }
     Object.assign(event, updatePayload);
     await event.save();
