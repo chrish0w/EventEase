@@ -175,16 +175,18 @@ router.put('/:id', auth, upload.single('file'), async (req, res) => {
         return res.status(400).json({ message: 'File upload not allowed for text templates' });
       }
       if (content !== undefined) template.content = content;
-    } else if (template.type === 'pdf') {
-      if (req.file) {
-        const oldFileUrl = template.fileUrl;
-        template.fileUrl = `uploads/${req.file.filename}`;
-        safeUnlink(oldFileUrl);
-      }
+    }
+
+    let oldFileToDelete = null;
+    if (template.type === 'pdf' && req.file) {
+      oldFileToDelete = template.fileUrl;
+      template.fileUrl = `uploads/${req.file.filename}`;
     }
 
     template.updatedBy = req.user.id;
     await template.save();
+
+    if (oldFileToDelete) safeUnlink(oldFileToDelete);
 
     const populated = await DisclaimerTemplate.findById(template._id)
       .populate('createdBy', 'name email')
