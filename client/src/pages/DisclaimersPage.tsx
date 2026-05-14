@@ -132,25 +132,37 @@ export default function DisclaimersPage() {
   };
 
   const handleSave = async () => {
-    if (!selectedClub?.clubId) return;
-    if (!editorTitle.trim() || !editorContent.trim()) {
-      setEditorError('Title and content are required');
+    setEditorError('');
+    if (!editorTitle.trim()) {
+      setEditorError('Title is required');
+      return;
+    }
+    if (editorType === 'text' && !editorContent.trim()) {
+      setEditorError('Content is required');
+      return;
+    }
+    if (editorMode === 'create' && editorType === 'pdf' && !editorFile) {
+      setEditorError('Please select a PDF file');
       return;
     }
     setEditorSaving(true);
-    setEditorError('');
     try {
+      const fd = new FormData();
+      fd.append('title', editorTitle.trim());
       if (editorMode === 'create') {
-        await api.post('/disclaimer-templates', {
-          clubId: selectedClub.clubId,
-          title: editorTitle.trim(),
-          content: editorContent,
-        });
+        fd.append('clubId', selectedClub!.clubId);
+        fd.append('type', editorType);
+      }
+      if (editorType === 'text') {
+        fd.append('content', editorContent);
+      } else if (editorFile) {
+        fd.append('file', editorFile);
+      }
+
+      if (editorMode === 'create') {
+        await api.post('/disclaimer-templates', fd);
       } else if (editorTemplate) {
-        await api.put(`/disclaimer-templates/${editorTemplate._id}`, {
-          title: editorTitle.trim(),
-          content: editorContent,
-        });
+        await api.put(`/disclaimer-templates/${editorTemplate._id}`, fd);
       }
       setEditorOpen(false);
       fetchTemplates();
