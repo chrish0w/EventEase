@@ -2,13 +2,15 @@ import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
+import PdfPreview from '../components/PdfPreview';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
 interface DisclaimerTemplate {
   _id: string;
   title: string;
-  content: string;
+  type: 'text' | 'pdf';
+  content: string | null;
 }
 
 interface CommitteeMember {
@@ -453,16 +455,22 @@ export default function CreateEventPage() {
                   >
                     <option value="">Select a template...</option>
                     {disclaimerTemplates.map(t => (
-                      <option key={t._id} value={t._id}>{t.title}</option>
+                      <option key={t._id} value={t._id}>
+                        {t.type === 'pdf' ? '📕' : '📄'} {t.title} ({t.type})
+                      </option>
                     ))}
                   </select>
                 </div>
 
                 {selectedTemplate && (
-                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 max-h-64 overflow-y-auto">
+                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 max-h-96 overflow-y-auto">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
                     <h4 className="text-sm font-semibold text-gray-800 mb-1">{selectedTemplate.title}</h4>
-                    <DisclaimerMarkdown content={selectedTemplate.content} />
+                    {selectedTemplate.type === 'pdf' ? (
+                      <PdfPreview url={`/disclaimer-templates/${selectedTemplate._id}/file`} />
+                    ) : (
+                      <DisclaimerMarkdown content={selectedTemplate.content ?? ''} />
+                    )}
                   </div>
                 )}
 
