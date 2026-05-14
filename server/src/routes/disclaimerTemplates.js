@@ -234,7 +234,14 @@ router.get('/:id/file', auth, async (req, res) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    res.sendFile(abs);
+    res.sendFile(abs, err => {
+      if (!err) return;
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Failed to send file' });
+      } else {
+        req.destroy();
+      }
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
