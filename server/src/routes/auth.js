@@ -117,7 +117,10 @@ router.put('/profile', auth, async (req, res) => {
 router.get('/users', auth, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
-    const users = await User.find({}, 'name email studentId role');
+    const users = await User.find(
+      { role: { $nin: ['admin', 'super_admin'] } },
+      'name email studentId role'
+    );
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });

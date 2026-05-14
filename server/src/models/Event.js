@@ -27,13 +27,18 @@ const eventSchema = new mongoose.Schema({
   capacity: Number,
   rsvpDeadline: Date,
   requiresSafetyDisclaimer: { type: Boolean, default: false },
+  disclaimerTemplateId: { type: mongoose.Schema.Types.ObjectId, ref: 'DisclaimerTemplate', default: null },
+  disclaimerTitle: { type: String, default: null },
+  disclaimerContent: { type: String, default: null },
   assignedCommittee: [committeeAssignmentSchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', required: true }
 }, { timestamps: true });
 
 eventSchema.pre('save', function(next) {
-  if (this.category === 'outdoor') this.requiresSafetyDisclaimer = true;
+  if (this.requiresSafetyDisclaimer && (!this.disclaimerTitle || !this.disclaimerContent)) {
+    return next(new Error('Disclaimer title and content are required when requiresSafetyDisclaimer is true'));
+  }
   next();
 });
 

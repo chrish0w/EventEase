@@ -33,7 +33,7 @@ const sidebarLinks = [
   { icon: '✅', label: 'Tasks', path: null },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: '/president/members' },
-  { icon: '🗂️', label: 'Safety Files', path: null },
+  { icon: '⚠️', label: 'Safety Disclaimers', path: '/president/disclaimers' },
 ];
 
 interface JoinRequest {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -20,6 +21,8 @@ interface Event {
   capacity?: number;
   rsvpDeadline?: string;
   requiresSafetyDisclaimer: boolean;
+  disclaimerTitle?: string | null;
+  disclaimerContent?: string | null;
   assignedCommittee: AssignedMember[];
   createdBy: { _id: string; name: string };
 }
@@ -132,7 +135,7 @@ function RolePanel({ role, event }: { role: string; event: Event }) {
   );
 }
 
-function EventCard({ event, myRole, onOpenWorkspaces }: { event: Event; myRole: string; onOpenWorkspaces: () => void }) {
+function EventCard({ event, myRole, onOpenWorkspaces, onViewDisclaimer }: { event: Event; myRole: string; onOpenWorkspaces: () => void; onViewDisclaimer: (e: Event) => void }) {
   const [expanded, setExpanded] = useState(false);
   const dateStr = new Date(event.date).toLocaleDateString('en-AU', {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -151,9 +154,13 @@ function EventCard({ event, myRole, onOpenWorkspaces }: { event: Event; myRole: 
               {ROLE_ICONS[myRole]} {myRole.charAt(0).toUpperCase() + myRole.slice(1)}
             </span>
             {event.requiresSafetyDisclaimer && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+              <button
+                type="button"
+                onClick={() => onViewDisclaimer(event)}
+                className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
+              >
                 ⚠️ Safety Required
-              </span>
+              </button>
             )}
           </div>
           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
@@ -188,6 +195,7 @@ export default function CommitteeEventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingDisclaimer, setViewingDisclaimer] = useState<Event | null>(null);
 
   useEffect(() => {
     if (!selectedClub?.clubId) return;
@@ -231,6 +239,13 @@ export default function CommitteeEventsPage() {
               <a href="#" className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition">
                 👥 Members
               </a>
+              <a
+                href="#"
+                onClick={e => { e.preventDefault(); navigate('/committee/disclaimers'); }}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition"
+              >
+                ⚠️ Safety Disclaimers
+              </a>
             </nav>
           </div>
         </aside>
@@ -258,12 +273,45 @@ export default function CommitteeEventsPage() {
                   event={event}
                   myRole={getMyRole(event)}
                   onOpenWorkspaces={() => navigate(`/committee/events/${event._id}/workspaces`)}
+                  onViewDisclaimer={setViewingDisclaimer}
                 />
               ))}
             </div>
           )}
         </main>
       </div>
+
+      {viewingDisclaimer && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewingDisclaimer(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between p-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  ⚠️ {viewingDisclaimer.disclaimerTitle || 'Safety Disclaimer'}
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  For event: {viewingDisclaimer.title}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingDisclaimer(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              <DisclaimerMarkdown content={viewingDisclaimer.disclaimerContent || ''} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

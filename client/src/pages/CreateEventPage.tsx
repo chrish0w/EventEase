@@ -1,8 +1,15 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+
+interface DisclaimerTemplate {
+  _id: string;
+  title: string;
+  content: string;
+}
 
 interface CommitteeMember {
   _id: string;
@@ -91,9 +98,18 @@ export default function CreateEventPage() {
   const isEdit = !!eventId;
 
   const [form, setForm] = useState({
-    title: '', description: '', date: '', location: '',
-    category: 'other', status: 'published', capacity: '', rsvpDeadline: '',
+    title: '',
+    description: '',
+    date: '',
+    location: '',
+    category: 'other',
+    status: 'published',
+    capacity: '',
+    rsvpDeadline: '',
+    requiresSafetyDisclaimer: false,
+    disclaimerTemplateId: '',
   });
+  const [disclaimerTemplates, setDisclaimerTemplates] = useState<DisclaimerTemplate[]>([]);
   const [assignedCommittee, setAssignedCommittee] = useState<AssignedMember[]>([]);
   const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
 
@@ -127,6 +143,8 @@ export default function CreateEventPage() {
           status: e.status ?? 'draft',
           capacity: e.capacity ? String(e.capacity) : '',
           rsvpDeadline: e.rsvpDeadline ? e.rsvpDeadline.slice(0, 10) : '',
+          requiresSafetyDisclaimer: !!e.requiresSafetyDisclaimer,
+          disclaimerTemplateId: e.disclaimerTemplateId ?? '',
         });
         if (e.assignedCommittee) {
           setAssignedCommittee(e.assignedCommittee.map((a: { userId: { _id: string }; role: string }) => ({
@@ -162,8 +180,27 @@ export default function CreateEventPage() {
     }
   }, [isPresident, selectedClub]);
 
+  useEffect(() => {
+    if (!selectedClub?.clubId) return;
+    api.get<DisclaimerTemplate[]>(`/disclaimer-templates?clubId=${selectedClub.clubId}`)
+      .then(res => setDisclaimerTemplates(res.data))
+      .catch(() => setDisclaimerTemplates([]));
+  }, [selectedClub?.clubId]);
+
+  const selectedTemplate = useMemo(
+    () => disclaimerTemplates.find(t => t._id === form.disclaimerTemplateId) || null,
+    [disclaimerTemplates, form.disclaimerTemplateId]
+  );
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm(prev => {
+      const next = { ...prev, [name]: value };
+      if (name === 'category' && value === 'outdoor' && prev.category !== 'outdoor') {
+        next.requiresSafetyDisclaimer = true;
+      }
+      return next;
+    });
   };
 
   const addCommitteeMember = () => setAssignedCommittee(prev => [...prev, { userId: '', role: 'general' }]);
@@ -253,6 +290,10 @@ export default function CreateEventPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (form.requiresSafetyDisclaimer && !form.disclaimerTemplateId) {
+      setError('Please select a disclaimer template, or turn off "Requires Safety Disclaimer".');
+      return;
+    }
     setLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -260,6 +301,7 @@ export default function CreateEventPage() {
         clubId: selectedClub?.clubId,
         capacity: form.capacity ? Number(form.capacity) : undefined,
         rsvpDeadline: form.rsvpDeadline || undefined,
+        disclaimerTemplateId: form.requiresSafetyDisclaimer ? form.disclaimerTemplateId : null,
       };
       if (isPresident) {
         payload.assignedCommittee = assignedCommittee.filter(a => a.userId);
@@ -375,16 +417,70 @@ export default function CreateEventPage() {
             </div>
           </div>
 
-          {/* Banners */}
-          {form.category === 'outdoor' && (
-            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex gap-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <p className="text-sm font-semibold text-orange-800">Safety Disclaimer Required</p>
-                <p className="text-sm text-orange-700 mt-0.5">Outdoor events require attendees to acknowledge a safety disclaimer before RSVPing.</p>
-              </div>
+          {/* Safety Disclaimer */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <input
+                id="requires-safety-disclaimer"
+                type="checkbox"
+                checked={form.requiresSafetyDisclaimer}
+                onChange={e => setForm(prev => ({
+                  ...prev,
+                  requiresSafetyDisclaimer: e.target.checked,
+                  disclaimerTemplateId: e.target.checked ? prev.disclaimerTemplateId : '',
+                }))}
+                className="mt-1"
+              />
+              <label htmlFor="requires-safety-disclaimer" className="cursor-pointer">
+                <p className="text-sm font-semibold text-gray-800">⚠️ Requires Safety Disclaimer</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Attendees will be required to acknowledge before RSVPing. Recommended for outdoor and high-risk events.
+                </p>
+              </label>
             </div>
-          )}
+
+            {form.requiresSafetyDisclaimer && (
+              <div className="border-t border-gray-100 pt-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Disclaimer Template <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.disclaimerTemplateId}
+                    onChange={e => setForm(prev => ({ ...prev, disclaimerTemplateId: e.target.value }))}
+                    required
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a template...</option>
+                    {disclaimerTemplates.map(t => (
+                      <option key={t._id} value={t._id}>{t.title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedTemplate && (
+                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 max-h-64 overflow-y-auto">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Preview</p>
+                    <h4 className="text-sm font-semibold text-gray-800 mb-1">{selectedTemplate.title}</h4>
+                    <DisclaimerMarkdown content={selectedTemplate.content} />
+                  </div>
+                )}
+
+                {disclaimerTemplates.length === 0 && (
+                  <p className="text-sm text-amber-600">
+                    No templates yet.{' '}
+                    <Link
+                      to={isPresident ? '/president/disclaimers' : '/committee/disclaimers'}
+                      className="font-medium underline"
+                    >
+                      Create one first →
+                    </Link>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {form.category === 'finance' && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex gap-3">
               <span className="text-xl">💰</span>

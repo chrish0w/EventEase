@@ -7,6 +7,32 @@ const BudgetDraft = require('../models/BudgetDraft');
 const ClubMembership = require('../models/ClubMembership');
 const User = require('../models/User');
 const EventRsvp = require('../models/EventRsvp');
+const DisclaimerTemplate = require('../models/DisclaimerTemplate');
+
+async function applyDisclaimerSnapshot(payload, clubId) {
+  if (!payload) return payload;
+  const requires = payload.requiresSafetyDisclaimer === true;
+  if (!requires) {
+    payload.disclaimerTemplateId = null;
+    payload.disclaimerTitle = null;
+    payload.disclaimerContent = null;
+    return payload;
+  }
+  if (!payload.disclaimerTemplateId) {
+    const err = new Error('Disclaimer template is required when requiresSafetyDisclaimer is true');
+    err.statusCode = 400;
+    throw err;
+  }
+  const template = await DisclaimerTemplate.findById(payload.disclaimerTemplateId);
+  if (!template || String(template.clubId) !== String(clubId)) {
+    const err = new Error('Template does not belong to this club');
+    err.statusCode = 400;
+    throw err;
+  }
+  payload.disclaimerTitle = template.title;
+  payload.disclaimerContent = template.content;
+  return payload;
+}
 
 // Helper: get user's membership in a club
 async function getMembership(userId, clubId) {
@@ -66,6 +92,7 @@ router.post('/', auth, async (req, res) => {
 
     const eventPayload = { ...req.body };
     delete eventPayload.budgetDraftId;
+    await applyDisclaimerSnapshot(eventPayload, clubId);
 
     const event = await Event.create({ ...eventPayload, createdBy: req.user.id });
 
@@ -240,7 +267,16 @@ router.put('/:id', auth, async (req, res) => {
     if (membership.role !== 'president' && event.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    Object.assign(event, req.body);
+    const updatePayload = { ...req.body };
+    if (updatePayload.requiresSafetyDisclaimer !== undefined || updatePayload.disclaimerTemplateId !== undefined) {
+      const requires = updatePayload.requiresSafetyDisclaimer ?? event.requiresSafetyDisclaimer;
+      const templateId = updatePayload.disclaimerTemplateId ?? event.disclaimerTemplateId;
+      await applyDisclaimerSnapshot(
+        Object.assign(updatePayload, { requiresSafetyDisclaimer: requires, disclaimerTemplateId: templateId }),
+        event.clubId
+      );
+    }
+    Object.assign(event, updatePayload);
     await event.save();
     const populated = await Event.findById(event._id)
       .populate('createdBy', 'name email')

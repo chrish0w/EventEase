@@ -31,7 +31,7 @@ const sidebarLinks = [
   { icon: '✅', label: 'Tasks', path: null },
   { icon: '💰', label: 'Budget', path: null },
   { icon: '👥', label: 'Members', path: '/president/members' },
-  { icon: '🗂️', label: 'Safety Files', path: null },
+  { icon: '⚠️', label: 'Safety Disclaimers', path: '/president/disclaimers' },
 ];
 
 export default function PresidentMembersPage() {
