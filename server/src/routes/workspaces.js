@@ -183,6 +183,44 @@ router.post('/workspaces/:wsId/tasks', auth, async (req, res) => {
   }
 });
 
+// Get all tasks assigned to the current user (committee: see own tasks across all workspaces)
+router.get('/tasks/my', auth, async (req, res) => {
+  try {
+    const tasks = await Task.find({ assignedTo: req.user.id })
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('workspaceId', 'name type')
+      .populate('eventId', 'title date')
+      .sort({ createdAt: -1 });
+    res.json(tasks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Get all tasks across all workspaces for a club (president only)
+router.get('/tasks/club', auth, async (req, res) => {
+  try {
+    const { clubId } = req.query;
+    if (!clubId) return res.status(400).json({ message: 'clubId is required' });
+    const membership = await ClubMembership.findOne({ userId: req.user.id, clubId });
+    if (!membership || membership.role !== 'president') {
+      return res.status(403).json({ message: 'President only' });
+    }
+    const events = await Event.find({ clubId }, '_id title date');
+    const eventIds = events.map(e => e._id);
+    const tasks = await Task.find({ eventId: { $in: eventIds } })
+      .populate('assignedTo', 'name email')
+      .populate('createdBy', 'name email')
+      .populate('workspaceId', 'name type')
+      .populate('eventId', 'title date')
+      .sort({ createdAt: -1 });
+    res.json(tasks);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Update a task (president, workspace owner/collab, or assignee for status only)
 router.put('/tasks/:id', auth, async (req, res) => {
   try {

@@ -28,6 +28,8 @@ import ConfirmOrganisationRegistrationPage from './pages/ConfirmOrganisationRegi
 import ScrollToTop from './components/ScrollToTop';
 import EventWorkspacesPage from './pages/EventWorkspacesPage';
 import WorkspaceDetailPage from './pages/WorkspaceDetailPage';
+import PresidentTasksPage from './pages/PresidentTasksPage';
+import CommitteeTasksPage from './pages/CommitteeTasksPage';
 
 function PrivateRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { token, user, selectedClub } = useAuth();
@@ -81,6 +83,8 @@ export default function App() {
           <Route path="/president/events/:id/workspaces" element={<PrivateRoute requiredRole="president"><EventWorkspacesPage /></PrivateRoute>} />
           <Route path="/committee/events/:id/workspaces" element={<PrivateRoute requiredRole="committee"><EventWorkspacesPage /></PrivateRoute>} />
           <Route path="/workspaces/:id" element={<PrivateRoute><WorkspaceDetailPage /></PrivateRoute>} />
+          <Route path="/president/tasks" element={<PrivateRoute requiredRole="president"><PresidentTasksPage /></PrivateRoute>} />
+          <Route path="/committee/tasks" element={<PrivateRoute requiredRole="committee"><CommitteeTasksPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

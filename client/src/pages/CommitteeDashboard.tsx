@@ -22,11 +22,15 @@ export default function CommitteeDashboard() {
   const { user, selectedClub } = useAuth();
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
+  const [taskCount, setTaskCount] = useState(0);
 
   useEffect(() => {
     if (!selectedClub?.clubId) return;
     api.get(`/events?clubId=${selectedClub.clubId}`)
       .then(res => setEvents(res.data))
+      .catch(() => {});
+    api.get('/tasks/my')
+      .then(res => setTaskCount(res.data.filter((t: { status: string }) => t.status !== 'done').length))
       .catch(() => {});
   }, [selectedClub]);
   const roleLabel = selectedClub?.committeeRole
@@ -64,6 +68,7 @@ export default function CommitteeDashboard() {
               </a>
               <a
                 href="#"
+                onClick={e => { e.preventDefault(); navigate('/committee/tasks'); }}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition"
               >
                 ✅ Tasks
@@ -96,7 +101,7 @@ export default function CommitteeDashboard() {
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
-              { label: 'My Assigned Tasks', value: '0', icon: '✅', color: 'bg-blue-50 text-blue-700' },
+              { label: 'My Assigned Tasks', value: String(taskCount), icon: '✅', color: 'bg-blue-50 text-blue-700' },
               { label: 'Club Events', value: String(events.length), icon: '📅', color: 'bg-purple-50 text-purple-700' },
               { label: 'Pending RSVPs', value: '0', icon: '🎟️', color: 'bg-yellow-50 text-yellow-700' },
             ].map((stat) => (
@@ -112,12 +117,33 @@ export default function CommitteeDashboard() {
 
           {/* My Tasks */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">My Tasks</h2>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="text-5xl mb-4">📋</div>
-              <p className="text-gray-500 font-medium">No tasks assigned yet</p>
-              <p className="text-gray-400 text-sm mt-1">Tasks assigned to you by the president will appear here.</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">My Tasks</h2>
+              <button
+                onClick={() => navigate('/committee/tasks')}
+                className="text-sm text-purple-600 hover:underline font-medium"
+              >
+                View All →
+              </button>
             </div>
+            {taskCount === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="text-5xl mb-4">📋</div>
+                <p className="text-gray-500 font-medium">No tasks assigned yet</p>
+                <p className="text-gray-400 text-sm mt-1">Tasks assigned to you in event workspaces will appear here.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <p className="text-3xl font-bold text-purple-700 mb-1">{taskCount}</p>
+                <p className="text-sm text-gray-500">active task{taskCount !== 1 ? 's' : ''} assigned to you</p>
+                <button
+                  onClick={() => navigate('/committee/tasks')}
+                  className="mt-3 bg-purple-600 text-white text-sm px-5 py-2 rounded-lg hover:bg-purple-700 transition font-medium"
+                >
+                  View My Tasks →
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Club Events */}

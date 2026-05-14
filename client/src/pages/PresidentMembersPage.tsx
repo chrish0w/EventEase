@@ -28,7 +28,7 @@ const ROLE_STYLES: Record<string, string> = {
 const sidebarLinks = [
   { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
   { icon: '📅', label: 'Events', path: '/president/events' },
-  { icon: '✅', label: 'Tasks', path: null },
+  { icon: '✅', label: 'Tasks', path: '/president/tasks' },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: '/president/members' },
   { icon: '🗂️', label: 'Safety Files', path: null },
