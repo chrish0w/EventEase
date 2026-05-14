@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
+import PdfPreview from '../components/PdfPreview';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -15,7 +16,9 @@ interface Template {
   _id: string;
   clubId: string;
   title: string;
-  content: string;
+  type: 'text' | 'pdf';
+  content: string | null;
+  fileUrl: string | null;
   createdBy?: UserRef;
   updatedBy?: UserRef;
   createdAt: string;
@@ -99,7 +102,7 @@ export default function DisclaimersPage() {
     setEditorMode('edit');
     setEditorTemplate(t);
     setEditorTitle(t.title);
-    setEditorContent(t.content);
+    setEditorContent(t.content ?? '');
     setEditorError('');
     setEditorOpen(true);
   };
@@ -226,7 +229,14 @@ export default function DisclaimersPage() {
                   <div key={t._id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold text-gray-800">{t.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold text-gray-800">{t.title}</h3>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            t.type === 'pdf' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {t.type === 'pdf' ? '📕 PDF' : '📄 Text'}
+                          </span>
+                        </div>
                         <p className="text-xs text-gray-400 mt-0.5">
                           Updated {timeAgo(t.updatedAt)}
                           {t.updatedBy?.name ? ` by ${t.updatedBy.name}` : ''}
@@ -259,7 +269,11 @@ export default function DisclaimersPage() {
                     </div>
                     {isExpanded && (
                       <div className="mt-3 border-t border-gray-100 pt-3">
-                        <DisclaimerMarkdown content={t.content} />
+                        {t.type === 'pdf' ? (
+                          <PdfPreview url={`/disclaimer-templates/${t._id}/file`} />
+                        ) : (
+                          <DisclaimerMarkdown content={t.content ?? ''} />
+                        )}
                       </div>
                     )}
                   </div>
