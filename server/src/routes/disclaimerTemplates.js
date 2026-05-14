@@ -1,7 +1,45 @@
 const router = require('express').Router();
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const auth = require('../middleware/auth');
 const DisclaimerTemplate = require('../models/DisclaimerTemplate');
 const ClubMembership = require('../models/ClubMembership');
+
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const unique = `disclaimer-template-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    cb(null, unique + path.extname(file.originalname).toLowerCase());
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const okMime = file.mimetype === 'application/pdf';
+    const okExt = path.extname(file.originalname).toLowerCase() === '.pdf';
+    if (!okMime || !okExt) {
+      return cb(new Error('Only PDF files are allowed'));
+    }
+    cb(null, true);
+  },
+});
+
+function safeUnlink(relPath) {
+  if (!relPath) return;
+  const filename = path.basename(relPath);
+  const abs = path.join(UPLOADS_DIR, filename);
+  fs.unlink(abs, err => {
+    if (err && err.code !== 'ENOENT') {
+      console.warn(`Failed to delete file ${abs}: ${err.message}`);
+    }
+  });
+}
 
 async function getMembership(userId, clubId) {
   return ClubMembership.findOne({ userId, clubId });
