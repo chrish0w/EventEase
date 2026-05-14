@@ -37,16 +37,23 @@ const eventSchema = new mongoose.Schema({
   clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', required: true }
 }, { timestamps: true });
 
+// Writes that change disclaimer fields must go through Document#save()
+// (or Model.create()). findOneAndUpdate/updateOne bypass this validator.
 eventSchema.pre('save', function(next) {
   if (this.requiresSafetyDisclaimer) {
     if (!this.disclaimerTitle) {
       return next(new Error('Disclaimer title is required when requiresSafetyDisclaimer is true'));
     }
-    if (this.disclaimerType === 'text' && !this.disclaimerContent) {
-      return next(new Error('Disclaimer content is required for text-type disclaimers'));
-    }
-    if (this.disclaimerType === 'pdf' && !this.disclaimerFileUrl) {
-      return next(new Error('Disclaimer file is required for pdf-type disclaimers'));
+    if (this.disclaimerType === 'text') {
+      if (!this.disclaimerContent) {
+        return next(new Error('Disclaimer content is required for text-type disclaimers'));
+      }
+      this.disclaimerFileUrl = null;
+    } else if (this.disclaimerType === 'pdf') {
+      if (!this.disclaimerFileUrl) {
+        return next(new Error('Disclaimer file is required for pdf-type disclaimers'));
+      }
+      this.disclaimerContent = null;
     }
   }
   next();
