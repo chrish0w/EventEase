@@ -21,8 +21,10 @@ export default function PdfPreview({ url, className }: PdfPreviewProps) {
         revoked = URL.createObjectURL(res.data);
         setBlobUrl(revoked);
       })
-      .catch(() => {
-        if (!cancelled) setError('Failed to load PDF');
+      .catch(err => {
+        if (cancelled) return;
+        console.error('PdfPreview failed to load', url, err);
+        setError('Failed to load PDF');
       });
     return () => {
       cancelled = true;
