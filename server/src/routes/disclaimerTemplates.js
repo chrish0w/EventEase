@@ -150,15 +150,39 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // Update template (president only)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', auth, upload.single('file'), async (req, res) => {
   try {
     const template = await DisclaimerTemplate.findById(req.params.id);
-    if (!template) return res.status(404).json({ message: 'Template not found' });
-    if (!(await requirePresident(req, res, template.clubId))) return;
+    if (!template) {
+      if (req.file) safeUnlink(req.file.filename);
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    if (!(await requirePresident(req, res, template.clubId))) {
+      if (req.file) safeUnlink(req.file.filename);
+      return;
+    }
+
+    if (req.body.type && req.body.type !== template.type) {
+      if (req.file) safeUnlink(req.file.filename);
+      return res.status(400).json({ message: 'Type cannot be changed. Create a new template instead.' });
+    }
 
     const { title, content } = req.body;
     if (title !== undefined) template.title = title.trim();
-    if (content !== undefined) template.content = content;
+    if (template.type === 'text') {
+      if (req.file) {
+        safeUnlink(req.file.filename);
+        return res.status(400).json({ message: 'File upload not allowed for text templates' });
+      }
+      if (content !== undefined) template.content = content;
+    } else if (template.type === 'pdf') {
+      if (req.file) {
+        const oldFileUrl = template.fileUrl;
+        template.fileUrl = `uploads/${req.file.filename}`;
+        safeUnlink(oldFileUrl);
+      }
+    }
+
     template.updatedBy = req.user.id;
     await template.save();
 
@@ -167,6 +191,7 @@ router.put('/:id', auth, async (req, res) => {
       .populate('updatedBy', 'name email');
     res.json(populated);
   } catch (err) {
+    if (req.file) safeUnlink(req.file.filename);
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Template name already exists in this club' });
     }
