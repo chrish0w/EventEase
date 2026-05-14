@@ -296,6 +296,35 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+router.get('/:id/disclaimer-file', auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (event.disclaimerType !== 'pdf' || !event.disclaimerFileUrl) {
+      return res.status(404).json({ message: 'Event has no PDF disclaimer' });
+    }
+    const membership = await getMembership(req.user.id, event.clubId);
+    if (!membership) return res.status(403).json({ message: 'Not a member of this club' });
+
+    const filename = path.basename(event.disclaimerFileUrl);
+    const abs = path.join(UPLOADS_DIR, filename);
+    if (!fs.existsSync(abs)) return res.status(404).json({ message: 'File missing on disk' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.sendFile(abs, err => {
+      if (!err) return;
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Failed to send file' });
+      } else {
+        req.destroy();
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Update event (president or creator)
 router.put('/:id', auth, async (req, res) => {
   try {
@@ -357,6 +386,10 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'President only' });
     }
     await Event.findByIdAndDelete(req.params.id);
+    if (event.disclaimerFileUrl) {
+      const abs = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
+      fs.promises.unlink(abs).catch(() => {});
+    }
     await Budget.findOneAndDelete({ clubId: event.clubId, eventId: event._id });
     await recalculateRemainingBudget(event.clubId);
     res.json({ message: 'Event deleted' });
