@@ -124,6 +124,7 @@ router.post('/', auth, upload.single('file'), async (req, res) => {
     res.status(201).json(populated);
   } catch (err) {
     if (uploadedFilePath) safeUnlink(uploadedFilePath);
+    else if (req.file) safeUnlink(req.file.filename);
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Template name already exists in this club' });
     }
@@ -187,6 +188,8 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// Error handler must remain the last middleware on this router — any route
+// added after this line will not have multer errors converted to 400 JSON.
 router.use(handleMulterError);
 
 module.exports = router;
