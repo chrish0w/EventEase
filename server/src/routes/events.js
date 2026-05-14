@@ -21,6 +21,10 @@ async function copyDisclaimerFile(srcRelPath, eventId) {
   return `uploads/${destName}`;
 }
 
+// When the chosen template is type='pdf', this attaches a transient
+// `__pendingDisclaimerFileCopy` field to `payload` carrying the template's
+// fileUrl. Callers MUST: (a) remove that field before persisting, and
+// (b) perform `copyDisclaimerFile(...)` once the event._id is available.
 async function applyDisclaimerSnapshot(payload, clubId) {
   if (!payload) return payload;
   const requires = payload.requiresSafetyDisclaimer === true;
@@ -117,16 +121,18 @@ router.post('/', auth, async (req, res) => {
     const pendingFileCopy = eventPayload.__pendingDisclaimerFileCopy;
     delete eventPayload.__pendingDisclaimerFileCopy;
 
-    const event = await Event.create({ ...eventPayload, createdBy: req.user.id });
-
+    const event = new Event({ ...eventPayload, createdBy: req.user.id });
     if (pendingFileCopy) {
-      try {
-        event.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, event._id);
-        await event.save();
-      } catch (copyErr) {
-        await Event.findByIdAndDelete(event._id);
-        throw copyErr;
+      event.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, event._id);
+    }
+    try {
+      await event.save();
+    } catch (saveErr) {
+      if (event.disclaimerFileUrl) {
+        const orphan = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
+        fs.promises.unlink(orphan).catch(() => {});
       }
+      throw saveErr;
     }
 
     if (budgetDraft) {
@@ -301,6 +307,7 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
     const updatePayload = { ...req.body };
+    let oldFileToDelete = null;
     if (updatePayload.requiresSafetyDisclaimer !== undefined || updatePayload.disclaimerTemplateId !== undefined) {
       const requires = updatePayload.requiresSafetyDisclaimer ?? event.requiresSafetyDisclaimer;
       const templateId = updatePayload.disclaimerTemplateId ?? event.disclaimerTemplateId;
@@ -311,20 +318,26 @@ router.put('/:id', auth, async (req, res) => {
       const pendingFileCopy = updatePayload.__pendingDisclaimerFileCopy;
       delete updatePayload.__pendingDisclaimerFileCopy;
       if (pendingFileCopy) {
-        // Remove the previous event file (if any) before writing the new one
-        if (event.disclaimerFileUrl) {
-          const oldAbs = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
-          fs.promises.unlink(oldAbs).catch(() => {});
+        const eventIdForCopy = event._id;
+        try {
+          updatePayload.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, eventIdForCopy);
+        } catch (copyErr) {
+          const dest = path.join(UPLOADS_DIR, `disclaimer-event-${eventIdForCopy}.pdf`);
+          fs.promises.unlink(dest).catch(() => {});
+          throw copyErr;
         }
-        updatePayload.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, event._id);
+        if (event.disclaimerFileUrl) oldFileToDelete = event.disclaimerFileUrl;
       } else if (updatePayload.disclaimerType === 'text' && event.disclaimerFileUrl) {
-        const oldAbs = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
-        fs.promises.unlink(oldAbs).catch(() => {});
+        oldFileToDelete = event.disclaimerFileUrl;
         updatePayload.disclaimerFileUrl = null;
       }
     }
     Object.assign(event, updatePayload);
     await event.save();
+    if (oldFileToDelete) {
+      const oldAbs = path.join(UPLOADS_DIR, path.basename(oldFileToDelete));
+      fs.promises.unlink(oldAbs).catch(() => {});
+    }
     const populated = await Event.findById(event._id)
       .populate('createdBy', 'name email')
       .populate('assignedCommittee.userId', 'name email');
