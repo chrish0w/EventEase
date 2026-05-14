@@ -75,6 +75,9 @@ export default function DisclaimersPage() {
   const [editorContent, setEditorContent] = useState('');
   const [editorSaving, setEditorSaving] = useState(false);
   const [editorError, setEditorError] = useState('');
+  const [editorType, setEditorType] = useState<'text' | 'pdf'>('text');
+  const [editorFile, setEditorFile] = useState<File | null>(null);
+  const [editorLocalPdfUrl, setEditorLocalPdfUrl] = useState<string>('');
 
   const fetchTemplates = () => {
     if (!selectedClub?.clubId) return;
@@ -89,12 +92,25 @@ export default function DisclaimersPage() {
     fetchTemplates();
   }, [selectedClub?.clubId]);
 
+  useEffect(() => {
+    if (!editorFile) {
+      setEditorLocalPdfUrl('');
+      return;
+    }
+    const url = URL.createObjectURL(editorFile);
+    setEditorLocalPdfUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [editorFile]);
+
   const openCreate = () => {
     setEditorMode('create');
     setEditorTemplate(null);
     setEditorTitle('');
     setEditorContent('');
     setEditorError('');
+    setEditorType('text');
+    setEditorFile(null);
+    setEditorLocalPdfUrl('');
     setEditorOpen(true);
   };
 
@@ -104,6 +120,9 @@ export default function DisclaimersPage() {
     setEditorTitle(t.title);
     setEditorContent(t.content ?? '');
     setEditorError('');
+    setEditorType(t.type);
+    setEditorFile(null);
+    setEditorLocalPdfUrl('');
     setEditorOpen(true);
   };
 
@@ -302,6 +321,25 @@ export default function DisclaimersPage() {
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Type</p>
+                <div className="flex gap-3">
+                  <label className={`flex-1 border rounded-lg p-3 cursor-pointer ${editorType === 'text' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'} ${editorMode === 'edit' ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input type="radio" name="type" value="text" checked={editorType === 'text'}
+                           onChange={() => setEditorType('text')} disabled={editorMode === 'edit'} className="mr-2" />
+                    📄 Text (Markdown)
+                  </label>
+                  <label className={`flex-1 border rounded-lg p-3 cursor-pointer ${editorType === 'pdf' ? 'border-purple-500 bg-purple-50' : 'border-gray-200'} ${editorMode === 'edit' ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <input type="radio" name="type" value="pdf" checked={editorType === 'pdf'}
+                           onChange={() => setEditorType('pdf')} disabled={editorMode === 'edit'} className="mr-2" />
+                    📕 PDF
+                  </label>
+                </div>
+                {editorMode === 'edit' && (
+                  <p className="text-xs text-gray-500 mt-1">Type cannot be changed after creation. Create a new template if needed.</p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
                 <input
@@ -313,29 +351,31 @@ export default function DisclaimersPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {editorType === 'text' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label>
+                  <textarea value={editorContent} onChange={e => setEditorContent(e.target.value)} rows={10}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono" />
+                </div>
+              ) : (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Content (Markdown) *
+                    {editorMode === 'edit' ? 'Replace PDF (optional)' : 'PDF file *'}
                   </label>
-                  <textarea
-                    value={editorContent}
-                    onChange={e => setEditorContent(e.target.value)}
-                    rows={16}
-                    placeholder={'## Risks\n\n- Item one\n- Item two\n\nBy participating you acknowledge...'}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Supports headings, lists, links, **bold**, *italic*, and tables.
-                  </p>
+                  <input type="file" accept="application/pdf,.pdf"
+                    onChange={e => setEditorFile(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                  {editorFile && (
+                    <p className="text-xs text-gray-500 mt-1">{editorFile.name} — {(editorFile.size / 1024).toFixed(1)} KB</p>
+                  )}
+                  {editorLocalPdfUrl && (
+                    <iframe src={editorLocalPdfUrl} title="New PDF preview" className="mt-2 w-full h-64 border border-gray-200 rounded-lg" />
+                  )}
+                  {editorMode === 'edit' && !editorFile && editorTemplate?.fileUrl && (
+                    <p className="text-xs text-gray-400 mt-2">Current file will be kept if you don't pick a new one.</p>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Live Preview</label>
-                  <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 h-[420px] overflow-y-auto">
-                    <DisclaimerMarkdown content={editorContent} />
-                  </div>
-                </div>
-              </div>
+              )}
 
               {editorError && (
                 <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
