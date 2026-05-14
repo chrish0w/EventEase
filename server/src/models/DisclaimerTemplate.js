@@ -12,6 +12,8 @@ const disclaimerTemplateSchema = new mongoose.Schema({
 
 disclaimerTemplateSchema.index({ clubId: 1, title: 1 }, { unique: true });
 
+// Writes that change type/content/fileUrl must go through Document#save()
+// (or Model.create()). findOneAndUpdate/updateOne bypass this validator.
 disclaimerTemplateSchema.pre('validate', function(next) {
   if (this.type === 'text') {
     if (!this.content || !this.content.trim()) {
@@ -19,7 +21,7 @@ disclaimerTemplateSchema.pre('validate', function(next) {
     }
     this.fileUrl = null;
   } else if (this.type === 'pdf') {
-    if (!this.fileUrl) {
+    if (!this.fileUrl || !this.fileUrl.trim()) {
       return next(new Error('PDF templates require a fileUrl'));
     }
     this.content = null;
