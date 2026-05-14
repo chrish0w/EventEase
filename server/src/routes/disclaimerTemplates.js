@@ -218,6 +218,28 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+router.get('/:id/file', auth, async (req, res) => {
+  try {
+    const template = await DisclaimerTemplate.findById(req.params.id);
+    if (!template) return res.status(404).json({ message: 'Template not found' });
+    if (template.type !== 'pdf' || !template.fileUrl) {
+      return res.status(404).json({ message: 'Template has no PDF file' });
+    }
+    const membership = await getMembership(req.user.id, template.clubId);
+    if (!membership) return res.status(403).json({ message: 'Not a member of this club' });
+
+    const filename = path.basename(template.fileUrl);
+    const abs = path.join(UPLOADS_DIR, filename);
+    if (!fs.existsSync(abs)) return res.status(404).json({ message: 'File missing on disk' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.sendFile(abs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Error handler must remain the last middleware on this router — any route
 // added after this line will not have multer errors converted to 400 JSON.
 router.use(handleMulterError);
