@@ -41,6 +41,10 @@ function safeUnlink(relPath) {
   });
 }
 
+function handleMulterError(err, _req, res, _next) {
+  if (err) return res.status(400).json({ message: err.message });
+}
+
 async function getMembership(userId, clubId) {
   return ClubMembership.findOne({ userId, clubId });
 }
@@ -78,26 +82,48 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create template (president only)
-router.post('/', auth, async (req, res) => {
+router.post('/', auth, upload.single('file'), async (req, res) => {
+  let uploadedFilePath = null;
   try {
-    const { clubId, title, content } = req.body;
-    if (!(await requirePresident(req, res, clubId))) return;
-    if (!title?.trim() || !content?.trim()) {
-      return res.status(400).json({ message: 'Title and content are required' });
+    const { clubId, title, type = 'text', content } = req.body;
+    if (!(await requirePresident(req, res, clubId))) {
+      if (req.file) safeUnlink(req.file.filename);
+      return;
+    }
+    if (!title?.trim()) {
+      if (req.file) safeUnlink(req.file.filename);
+      return res.status(400).json({ message: 'Title is required' });
     }
 
-    const template = await DisclaimerTemplate.create({
-      clubId,
-      title: title.trim(),
-      content,
-      createdBy: req.user.id,
-      updatedBy: req.user.id,
-    });
+    let templateData = { clubId, title: title.trim(), type, createdBy: req.user.id, updatedBy: req.user.id };
+
+    if (type === 'text') {
+      if (req.file) {
+        safeUnlink(req.file.filename);
+        return res.status(400).json({ message: 'File upload not allowed for text templates' });
+      }
+      if (!content?.trim()) {
+        return res.status(400).json({ message: 'Content is required for text templates' });
+      }
+      templateData.content = content;
+    } else if (type === 'pdf') {
+      if (!req.file) {
+        return res.status(400).json({ message: 'PDF file is required for pdf templates' });
+      }
+      uploadedFilePath = req.file.filename;
+      templateData.fileUrl = `uploads/${req.file.filename}`;
+    } else {
+      if (req.file) safeUnlink(req.file.filename);
+      return res.status(400).json({ message: 'Invalid type' });
+    }
+
+    const template = await DisclaimerTemplate.create(templateData);
     const populated = await DisclaimerTemplate.findById(template._id)
       .populate('createdBy', 'name email')
       .populate('updatedBy', 'name email');
     res.status(201).json(populated);
   } catch (err) {
+    if (uploadedFilePath) safeUnlink(uploadedFilePath);
     if (err.code === 11000) {
       return res.status(409).json({ message: 'Template name already exists in this club' });
     }
@@ -160,5 +186,7 @@ router.delete('/:id', auth, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+router.use(handleMulterError);
 
 module.exports = router;
