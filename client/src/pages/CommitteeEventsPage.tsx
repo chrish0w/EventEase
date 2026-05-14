@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
+import PdfPreview from '../components/PdfPreview';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -23,6 +24,8 @@ interface Event {
   requiresSafetyDisclaimer: boolean;
   disclaimerTitle?: string | null;
   disclaimerContent?: string | null;
+  disclaimerType?: 'text' | 'pdf';
+  disclaimerFileUrl?: string | null;
   assignedCommittee: AssignedMember[];
   createdBy: { _id: string; name: string };
 }
@@ -307,7 +310,11 @@ export default function CommitteeEventsPage() {
               </button>
             </div>
             <div className="p-5 overflow-y-auto flex-1">
-              <DisclaimerMarkdown content={viewingDisclaimer.disclaimerContent || ''} />
+              {viewingDisclaimer.disclaimerType === 'pdf' ? (
+                <PdfPreview url={`/events/${viewingDisclaimer._id}/disclaimer-file`} />
+              ) : (
+                <DisclaimerMarkdown content={viewingDisclaimer.disclaimerContent ?? ''} />
+              )}
             </div>
           </div>
         </div>
