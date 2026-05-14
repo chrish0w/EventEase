@@ -30,14 +30,24 @@ const eventSchema = new mongoose.Schema({
   disclaimerTemplateId: { type: mongoose.Schema.Types.ObjectId, ref: 'DisclaimerTemplate', default: null },
   disclaimerTitle: { type: String, default: null },
   disclaimerContent: { type: String, default: null },
+  disclaimerType: { type: String, enum: ['text', 'pdf'], default: 'text' },
+  disclaimerFileUrl: { type: String, default: null },
   assignedCommittee: [committeeAssignmentSchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', required: true }
 }, { timestamps: true });
 
 eventSchema.pre('save', function(next) {
-  if (this.requiresSafetyDisclaimer && (!this.disclaimerTitle || !this.disclaimerContent)) {
-    return next(new Error('Disclaimer title and content are required when requiresSafetyDisclaimer is true'));
+  if (this.requiresSafetyDisclaimer) {
+    if (!this.disclaimerTitle) {
+      return next(new Error('Disclaimer title is required when requiresSafetyDisclaimer is true'));
+    }
+    if (this.disclaimerType === 'text' && !this.disclaimerContent) {
+      return next(new Error('Disclaimer content is required for text-type disclaimers'));
+    }
+    if (this.disclaimerType === 'pdf' && !this.disclaimerFileUrl) {
+      return next(new Error('Disclaimer file is required for pdf-type disclaimers'));
+    }
   }
   next();
 });
