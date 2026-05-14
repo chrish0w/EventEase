@@ -161,6 +161,12 @@ export default function UserDashboard() {
     await fetchRsvps();
   };
 
+  const handleCancelRsvp = async (eventId: string) => {
+    await api.delete(`/events/${eventId}/rsvp`);
+    setEvents(prev => prev.map(event => event._id === eventId ? { ...event, rsvped: false } : event));
+    await fetchRsvps();
+  };
+
   const changeClubScope = async (scope: string) => {
     setClubScope(scope);
     await fetchClubs(scope);
@@ -261,7 +267,7 @@ export default function UserDashboard() {
                     <div className="space-y-6">
                       <Panel title="Upcoming Events" action={<button onClick={() => setActiveTab('events')} className="text-sm font-semibold text-cyan-200">Browse all</button>}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {upcomingEvents.length ? upcomingEvents.map(event => <EventCard key={event._id} event={event} onRsvp={handleRsvp} />) : <EmptyState title="No events yet" body="Published events will appear here." />}
+                          {upcomingEvents.length ? upcomingEvents.map(event => <EventCard key={event._id} event={event} onRsvp={handleRsvp} onCancelRsvp={handleCancelRsvp} />) : <EmptyState title="No events yet" body="Published events will appear here." />}
                         </div>
                       </Panel>
                       <Panel title="Following">
@@ -272,13 +278,13 @@ export default function UserDashboard() {
                       </Panel>
                       <Panel title="Your RSVPs">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {rsvps.slice(0, 4).map(item => item.event && <EventCard key={item._id} event={{ ...item.event, rsvped: true }} onRsvp={handleRsvp} />)}
+                          {rsvps.slice(0, 4).map(item => item.event && <EventCard key={item._id} event={{ ...item.event, rsvped: true }} onRsvp={handleRsvp} onCancelRsvp={handleCancelRsvp} />)}
                           {!rsvps.length && <EmptyState title="No RSVPs yet" body="RSVP to an event and it will be saved here." />}
                         </div>
                       </Panel>
                       <Panel title="Past Attended Events">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {pastRsvps.map(item => item.event && <EventCard key={item._id} event={{ ...item.event, rsvped: true }} onRsvp={handleRsvp} />)}
+                          {pastRsvps.map(item => item.event && <EventCard key={item._id} event={{ ...item.event, rsvped: true }} onRsvp={handleRsvp} onCancelRsvp={handleCancelRsvp} />)}
                           {!pastRsvps.length && <EmptyState title="No past events yet" body="Events you RSVP to will move here after their date has passed." />}
                         </div>
                       </Panel>
@@ -308,7 +314,7 @@ export default function UserDashboard() {
                         </select>
                       </FilterRow>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {filteredEvents.map(event => <EventCard key={event._id} event={event} onRsvp={handleRsvp} />)}
+                        {filteredEvents.map(event => <EventCard key={event._id} event={event} onRsvp={handleRsvp} onCancelRsvp={handleCancelRsvp} />)}
                       </div>
                     </Panel>
                   )}
@@ -422,7 +428,7 @@ function ClubCard({ club, onOpen, onFollow, onOpenWorkspace, large }: { club: Cl
   );
 }
 
-function EventCard({ event, onRsvp }: { event: EventItem; onRsvp: (eventId: string) => void }) {
+function EventCard({ event, onRsvp, onCancelRsvp }: { event: EventItem; onRsvp: (eventId: string) => void; onCancelRsvp?: (eventId: string) => void }) {
   const date = new Date(event.date);
   return (
     <article className="rounded-2xl border border-white/10 bg-[#08111f]/70 p-5 transition hover:-translate-y-1 hover:bg-white/10">
@@ -440,9 +446,21 @@ function EventCard({ event, onRsvp }: { event: EventItem; onRsvp: (eventId: stri
         {event.location && <p>{event.location}</p>}
         {event.capacity && <p>{event.capacity} capacity</p>}
       </div>
-      <button onClick={() => onRsvp(event._id)} disabled={event.rsvped} className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition ${event.rsvped ? 'bg-emerald-400/20 text-emerald-200' : 'bg-cyan-500 text-slate-950 hover:bg-cyan-300'}`}>
-        {event.rsvped ? 'RSVP saved' : 'RSVP'}
-      </button>
+      {event.rsvped ? (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-emerald-300">Your response: Going</p>
+          <button
+            onClick={() => onCancelRsvp?.(event._id)}
+            className="w-full rounded-lg px-4 py-2 text-sm font-semibold text-slate-400 hover:text-red-400 transition"
+          >
+            Cancel RSVP
+          </button>
+        </div>
+      ) : (
+        <button onClick={() => onRsvp(event._id)} className="w-full rounded-lg px-4 py-2 text-sm font-semibold transition bg-cyan-500 text-slate-950 hover:bg-cyan-300">
+          RSVP
+        </button>
+      )}
     </article>
   );
 }
