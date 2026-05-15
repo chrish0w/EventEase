@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
+import PdfPreview from '../components/PdfPreview';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -19,6 +21,10 @@ interface Event {
   status: 'draft' | 'published' | 'cancelled';
   capacity?: number;
   requiresSafetyDisclaimer: boolean;
+  disclaimerTitle?: string | null;
+  disclaimerContent?: string | null;
+  disclaimerType?: 'text' | 'pdf';
+  disclaimerFileUrl?: string | null;
   assignedCommittee: AssignedMember[];
   createdBy: { _id: string; name: string };
 }
@@ -42,13 +48,14 @@ const sidebarLinks = [
   { icon: '📅', label: 'Events', path: '/president/events' },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: null },
-  { icon: '🗂️', label: 'Safety Files', path: null },
+  { icon: '⚠️', label: 'Safety Disclaimers', path: '/president/disclaimers' },
 ];
 
 export default function PresidentEventsPage() {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingDisclaimer, setViewingDisclaimer] = useState<Event | null>(null);
 
   const { selectedClub } = useAuth();
 
@@ -144,9 +151,13 @@ export default function PresidentEventsPage() {
                             {event.status}
                           </span>
                           {event.requiresSafetyDisclaimer && (
-                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                            <button
+                              type="button"
+                              onClick={() => setViewingDisclaimer(event)}
+                              className="text-xs font-medium px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
+                            >
                               ⚠️ Safety
-                            </span>
+                            </button>
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
@@ -198,6 +209,42 @@ export default function PresidentEventsPage() {
           )}
         </main>
       </div>
+
+      {viewingDisclaimer && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+          onClick={() => setViewingDisclaimer(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between p-5 border-b border-gray-100">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  ⚠️ {viewingDisclaimer.disclaimerTitle || 'Safety Disclaimer'}
+                </h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  For event: {viewingDisclaimer.title}
+                </p>
+              </div>
+              <button
+                onClick={() => setViewingDisclaimer(null)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1">
+              {viewingDisclaimer.disclaimerType === 'pdf' ? (
+                <PdfPreview url={`/events/${viewingDisclaimer._id}/disclaimer-file`} />
+              ) : (
+                <DisclaimerMarkdown content={viewingDisclaimer.disclaimerContent ?? ''} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

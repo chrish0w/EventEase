@@ -27,13 +27,35 @@ const eventSchema = new mongoose.Schema({
   capacity: Number,
   rsvpDeadline: Date,
   requiresSafetyDisclaimer: { type: Boolean, default: false },
+  disclaimerTemplateId: { type: mongoose.Schema.Types.ObjectId, ref: 'DisclaimerTemplate', default: null },
+  disclaimerTitle: { type: String, default: null },
+  disclaimerContent: { type: String, default: null },
+  disclaimerType: { type: String, enum: ['text', 'pdf'], default: 'text' },
+  disclaimerFileUrl: { type: String, default: null },
   assignedCommittee: [committeeAssignmentSchema],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   clubId: { type: mongoose.Schema.Types.ObjectId, ref: 'Club', required: true }
 }, { timestamps: true });
 
+// Writes that change disclaimer fields must go through Document#save()
+// (or Model.create()). findOneAndUpdate/updateOne bypass this validator.
 eventSchema.pre('save', function(next) {
-  if (this.category === 'outdoor') this.requiresSafetyDisclaimer = true;
+  if (this.requiresSafetyDisclaimer) {
+    if (!this.disclaimerTitle) {
+      return next(new Error('Disclaimer title is required when requiresSafetyDisclaimer is true'));
+    }
+    if (this.disclaimerType === 'text') {
+      if (!this.disclaimerContent) {
+        return next(new Error('Disclaimer content is required for text-type disclaimers'));
+      }
+      this.disclaimerFileUrl = null;
+    } else if (this.disclaimerType === 'pdf') {
+      if (!this.disclaimerFileUrl) {
+        return next(new Error('Disclaimer file is required for pdf-type disclaimers'));
+      }
+      this.disclaimerContent = null;
+    }
+  }
   next();
 });
 

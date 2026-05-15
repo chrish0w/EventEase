@@ -73,7 +73,7 @@ const sidebarLinks = [
   { icon: '📅', label: 'Events', path: '/president/events' },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: '/president/members' },
-  { icon: '🗂️', label: 'Safety Files', path: null },
+  { icon: '⚠️', label: 'Safety Disclaimers', path: '/president/disclaimers' },
 ];
 
 function formatCurrency(value: number) {

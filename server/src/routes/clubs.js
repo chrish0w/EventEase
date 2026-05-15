@@ -179,14 +179,13 @@ router.post('/:id/assign-president', auth, async (req, res) => {
     if (!orgId || club.orgId.toString() !== orgId.toString())
       return res.status(403).json({ message: 'Not your organisation' });
     const { userId, email } = req.body;
-    let targetUserId = userId;
-    if (!targetUserId && email) {
-      const user = await User.findOne({ email: email.toLowerCase() });
-      if (!user) return res.status(404).json({ message: 'No user found with that email address' });
-      if (user.role === 'admin') return res.status(400).json({ message: 'Organisation admins cannot be assigned club roles.' });
-      targetUserId = user._id;
-    }
-    if (!targetUserId) return res.status(400).json({ message: 'User email is required' });
+    const targetUser = userId
+      ? await User.findById(userId)
+      : (email ? await User.findOne({ email: email.toLowerCase() }) : null);
+    if (!targetUser) return res.status(404).json({ message: 'No user found' });
+    if (targetUser.role === 'admin' || targetUser.role === 'super_admin')
+      return res.status(400).json({ message: 'Admin-level users cannot be assigned club roles.' });
+    const targetUserId = targetUser._id;
     await ClubMembership.updateMany(
       { clubId: req.params.id, role: 'president', userId: { $ne: targetUserId } },
       { role: 'user', $unset: { committeeRole: '' } }

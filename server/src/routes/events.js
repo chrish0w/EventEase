@@ -1,4 +1,6 @@
 const router = require('express').Router();
+const path = require('path');
+const fs = require('fs');
 const auth = require('../middleware/auth');
 const Club = require('../models/Club');
 const Event = require('../models/Event');
@@ -7,6 +9,55 @@ const BudgetDraft = require('../models/BudgetDraft');
 const ClubMembership = require('../models/ClubMembership');
 const User = require('../models/User');
 const EventRsvp = require('../models/EventRsvp');
+const DisclaimerTemplate = require('../models/DisclaimerTemplate');
+
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+
+async function copyDisclaimerFile(srcRelPath, eventId) {
+  const srcAbs = path.join(UPLOADS_DIR, path.basename(srcRelPath));
+  const destName = `disclaimer-event-${eventId}.pdf`;
+  const destAbs = path.join(UPLOADS_DIR, destName);
+  await fs.promises.copyFile(srcAbs, destAbs);
+  return `uploads/${destName}`;
+}
+
+// When the chosen template is type='pdf', this attaches a transient
+// `__pendingDisclaimerFileCopy` field to `payload` carrying the template's
+// fileUrl. Callers MUST: (a) remove that field before persisting, and
+// (b) perform `copyDisclaimerFile(...)` once the event._id is available.
+async function applyDisclaimerSnapshot(payload, clubId) {
+  if (!payload) return payload;
+  const requires = payload.requiresSafetyDisclaimer === true;
+  if (!requires) {
+    payload.disclaimerTemplateId = null;
+    payload.disclaimerTitle = null;
+    payload.disclaimerType = 'text';
+    payload.disclaimerContent = null;
+    payload.disclaimerFileUrl = null;
+    return payload;
+  }
+  if (!payload.disclaimerTemplateId) {
+    const err = new Error('Disclaimer template is required when requiresSafetyDisclaimer is true');
+    err.statusCode = 400;
+    throw err;
+  }
+  const template = await DisclaimerTemplate.findById(payload.disclaimerTemplateId);
+  if (!template || String(template.clubId) !== String(clubId)) {
+    const err = new Error('Template does not belong to this club');
+    err.statusCode = 400;
+    throw err;
+  }
+  payload.disclaimerTitle = template.title;
+  payload.disclaimerType = template.type;
+  if (template.type === 'text') {
+    payload.disclaimerContent = template.content;
+    payload.disclaimerFileUrl = null;
+  } else {
+    payload.disclaimerContent = null;
+    payload.__pendingDisclaimerFileCopy = template.fileUrl;
+  }
+  return payload;
+}
 
 // Helper: get user's membership in a club
 async function getMembership(userId, clubId) {
@@ -66,8 +117,23 @@ router.post('/', auth, async (req, res) => {
 
     const eventPayload = { ...req.body };
     delete eventPayload.budgetDraftId;
+    await applyDisclaimerSnapshot(eventPayload, clubId);
+    const pendingFileCopy = eventPayload.__pendingDisclaimerFileCopy;
+    delete eventPayload.__pendingDisclaimerFileCopy;
 
-    const event = await Event.create({ ...eventPayload, createdBy: req.user.id });
+    const event = new Event({ ...eventPayload, createdBy: req.user.id });
+    if (pendingFileCopy) {
+      event.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, event._id);
+    }
+    try {
+      await event.save();
+    } catch (saveErr) {
+      if (event.disclaimerFileUrl) {
+        const orphan = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
+        fs.promises.unlink(orphan).catch(() => {});
+      }
+      throw saveErr;
+    }
 
     if (budgetDraft) {
       const totals = getTotals(budgetDraft.lineItems);
@@ -230,6 +296,35 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+router.get('/:id/disclaimer-file', auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ message: 'Event not found' });
+    if (event.disclaimerType !== 'pdf' || !event.disclaimerFileUrl) {
+      return res.status(404).json({ message: 'Event has no PDF disclaimer' });
+    }
+    const membership = await getMembership(req.user.id, event.clubId);
+    if (!membership) return res.status(403).json({ message: 'Not a member of this club' });
+
+    const filename = path.basename(event.disclaimerFileUrl);
+    const abs = path.join(UPLOADS_DIR, filename);
+    if (!fs.existsSync(abs)) return res.status(404).json({ message: 'File missing on disk' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.sendFile(abs, err => {
+      if (!err) return;
+      if (!res.headersSent) {
+        res.status(500).json({ message: 'Failed to send file' });
+      } else {
+        req.destroy();
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // Update event (president or creator)
 router.put('/:id', auth, async (req, res) => {
   try {
@@ -240,8 +335,38 @@ router.put('/:id', auth, async (req, res) => {
     if (membership.role !== 'president' && event.createdBy.toString() !== req.user.id) {
       return res.status(403).json({ message: 'Not authorized' });
     }
-    Object.assign(event, req.body);
+    const updatePayload = { ...req.body };
+    let oldFileToDelete = null;
+    if (updatePayload.requiresSafetyDisclaimer !== undefined || updatePayload.disclaimerTemplateId !== undefined) {
+      const requires = updatePayload.requiresSafetyDisclaimer ?? event.requiresSafetyDisclaimer;
+      const templateId = updatePayload.disclaimerTemplateId ?? event.disclaimerTemplateId;
+      await applyDisclaimerSnapshot(
+        Object.assign(updatePayload, { requiresSafetyDisclaimer: requires, disclaimerTemplateId: templateId }),
+        event.clubId
+      );
+      const pendingFileCopy = updatePayload.__pendingDisclaimerFileCopy;
+      delete updatePayload.__pendingDisclaimerFileCopy;
+      if (pendingFileCopy) {
+        const eventIdForCopy = event._id;
+        try {
+          updatePayload.disclaimerFileUrl = await copyDisclaimerFile(pendingFileCopy, eventIdForCopy);
+        } catch (copyErr) {
+          const dest = path.join(UPLOADS_DIR, `disclaimer-event-${eventIdForCopy}.pdf`);
+          fs.promises.unlink(dest).catch(() => {});
+          throw copyErr;
+        }
+        if (event.disclaimerFileUrl) oldFileToDelete = event.disclaimerFileUrl;
+      } else if (updatePayload.disclaimerType === 'text' && event.disclaimerFileUrl) {
+        oldFileToDelete = event.disclaimerFileUrl;
+        updatePayload.disclaimerFileUrl = null;
+      }
+    }
+    Object.assign(event, updatePayload);
     await event.save();
+    if (oldFileToDelete) {
+      const oldAbs = path.join(UPLOADS_DIR, path.basename(oldFileToDelete));
+      fs.promises.unlink(oldAbs).catch(() => {});
+    }
     const populated = await Event.findById(event._id)
       .populate('createdBy', 'name email')
       .populate('assignedCommittee.userId', 'name email');
@@ -261,6 +386,10 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'President only' });
     }
     await Event.findByIdAndDelete(req.params.id);
+    if (event.disclaimerFileUrl) {
+      const abs = path.join(UPLOADS_DIR, path.basename(event.disclaimerFileUrl));
+      fs.promises.unlink(abs).catch(() => {});
+    }
     await Budget.findOneAndDelete({ clubId: event.clubId, eventId: event._id });
     await recalculateRemainingBudget(event.clubId);
     res.json({ message: 'Event deleted' });

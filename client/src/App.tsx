@@ -14,6 +14,7 @@ import ClubSelectPage from './pages/ClubSelectPage';
 import JoinClubPage from './pages/JoinClubPage';
 import AdminDashboard from './pages/AdminDashboard';
 import PresidentMembersPage from './pages/PresidentMembersPage';
+import DisclaimersPage from './pages/DisclaimersPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SuperAdminOrgsPage from './pages/SuperAdminOrgsPage';
 import SuperAdminOrgAdminsPage from './pages/SuperAdminOrgAdminsPage';
@@ -81,6 +82,8 @@ export default function App() {
           <Route path="/president/events/:id/workspaces" element={<PrivateRoute requiredRole="president"><EventWorkspacesPage /></PrivateRoute>} />
           <Route path="/committee/events/:id/workspaces" element={<PrivateRoute requiredRole="committee"><EventWorkspacesPage /></PrivateRoute>} />
           <Route path="/workspaces/:id" element={<PrivateRoute><WorkspaceDetailPage /></PrivateRoute>} />
+          <Route path="/president/disclaimers" element={<PrivateRoute requiredRole="president"><DisclaimersPage /></PrivateRoute>} />
+          <Route path="/committee/disclaimers" element={<PrivateRoute requiredRole="committee"><DisclaimersPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>
