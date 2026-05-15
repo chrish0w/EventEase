@@ -226,9 +226,6 @@ export default function CommitteeEventsPage() {
                 📅 Events
               </a>
               <a href="#" className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition">
-                ✅ Tasks
-              </a>
-              <a href="#" className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition">
                 👥 Members
               </a>
             </nav>

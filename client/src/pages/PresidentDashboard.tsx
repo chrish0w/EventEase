@@ -30,7 +30,6 @@ const sidebarLinks = [
   { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
   { icon: '←', label: 'Explore Portal', path: '/user/dashboard' },
   { icon: '📅', label: 'Events', path: '/president/events' },
-  { icon: '✅', label: 'Tasks', path: null },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: '/president/members' },
   { icon: '🗂️', label: 'Safety Files', path: null },
@@ -103,7 +102,6 @@ export default function PresidentDashboard() {
   const stats = [
     { label: 'Total Events', value: String(events.length), icon: '📅', color: 'bg-blue-50 text-blue-700' },
     { label: 'Total Members', value: '0', icon: '👥', color: 'bg-green-50 text-green-700' },
-    { label: 'Active Tasks', value: '0', icon: '✅', color: 'bg-purple-50 text-purple-700' },
     { label: 'Budget Overview', value: formatCurrency(remainingBudget), icon: '💰', color: 'bg-yellow-50 text-yellow-700', actionPath: '/president/budget' },
   ];
 

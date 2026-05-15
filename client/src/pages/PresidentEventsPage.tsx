@@ -40,7 +40,6 @@ const CATEGORY_ICONS: Record<string, string> = {
 const sidebarLinks = [
   { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
   { icon: '📅', label: 'Events', path: '/president/events' },
-  { icon: '✅', label: 'Tasks', path: null },
   { icon: '💰', label: 'Budget', path: '/president/budget' },
   { icon: '👥', label: 'Members', path: null },
   { icon: '🗂️', label: 'Safety Files', path: null },

@@ -66,12 +66,6 @@ export default function CommitteeDashboard() {
                 href="#"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition"
               >
-                ✅ Tasks
-              </a>
-              <a
-                href="#"
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-sm transition"
-              >
                 👥 Members
               </a>
             </nav>
@@ -96,7 +90,6 @@ export default function CommitteeDashboard() {
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             {[
-              { label: 'My Assigned Tasks', value: '0', icon: '✅', color: 'bg-blue-50 text-blue-700' },
               { label: 'Club Events', value: String(events.length), icon: '📅', color: 'bg-purple-50 text-purple-700' },
               { label: 'Pending RSVPs', value: '0', icon: '🎟️', color: 'bg-yellow-50 text-yellow-700' },
             ].map((stat) => (
@@ -108,16 +101,6 @@ export default function CommitteeDashboard() {
                 <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
               </div>
             ))}
-          </div>
-
-          {/* My Tasks */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">My Tasks</h2>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="text-5xl mb-4">📋</div>
-              <p className="text-gray-500 font-medium">No tasks assigned yet</p>
-              <p className="text-gray-400 text-sm mt-1">Tasks assigned to you by the president will appear here.</p>
-            </div>
           </div>
 
           {/* Club Events */}

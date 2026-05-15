@@ -50,7 +50,17 @@ router.get('/events/:eventId/workspaces', auth, async (req, res) => {
   try {
     const ctx = await loadEventContext(req.user.id, req.params.eventId);
     if (ctx.error) return res.status(ctx.error.status).json({ message: ctx.error.message });
-    const workspaces = await Workspace.find({ eventId: req.params.eventId })
+
+    let query = { eventId: req.params.eventId };
+    // Committee members only see workspaces they own or collaborate on
+    if (ctx.membership.role === 'committee') {
+      query.$or = [
+        { owner: req.user.id },
+        { collaborators: req.user.id },
+      ];
+    }
+
+    const workspaces = await Workspace.find(query)
       .populate('owner', 'name email')
       .populate('collaborators', 'name email')
       .sort({ createdAt: 1 });
