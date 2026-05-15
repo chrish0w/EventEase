@@ -37,7 +37,19 @@ export default function Navbar() {
     <nav className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-bold text-blue-600">EventEase</span>
+          <span
+            className="text-xl font-bold text-blue-600 cursor-pointer hover:text-blue-700 transition"
+            onClick={() => {
+              if (!user) return navigate('/');
+              if (user.role === 'super_admin') return navigate('/super-admin/dashboard');
+              if (user.role === 'admin') return navigate('/admin/dashboard');
+              if (selectedClub?.role === 'president') return navigate('/president/dashboard');
+              if (selectedClub?.role === 'committee') return navigate('/committee/dashboard');
+              navigate('/user/dashboard');
+            }}
+          >
+            EventEase
+          </span>
         </div>
         <div className="flex items-center gap-4">
           {user && (

@@ -66,6 +66,17 @@ const COLUMNS: { key: Task['status']; label: string; tone: string; dropTone: str
   { key: 'done',        label: 'Done',        tone: 'bg-green-50 border-green-200', dropTone: 'ring-green-400' },
 ];
 
+const STATUS_BADGE: Record<Task['status'], string> = {
+  todo: 'bg-gray-100 text-gray-600',
+  in_progress: 'bg-blue-100 text-blue-700',
+  done: 'bg-green-100 text-green-700',
+};
+const STATUS_LABEL: Record<Task['status'], string> = {
+  todo: 'To Do',
+  in_progress: 'In Progress',
+  done: 'Done',
+};
+
 const TYPE_ICONS: Record<string, string> = {
   budget: '💰', logistics: '📦', equipment: '🔧',
   transport: '🚗', safety: '⚠️', documents: '📁', tasks: '✅', custom: '📌',
@@ -134,8 +145,14 @@ export default function WorkspaceDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [budgetItems, setBudgetItems] = useState<BudgetLineItem[]>([]);
   const [budgetSaving, setBudgetSaving] = useState(false);
+  const [editingOwner, setEditingOwner] = useState(false);
+  const [newOwnerId, setNewOwnerId] = useState('');
   const [budgetMsg, setBudgetMsg] = useState('');
   const [budgetDirty, setBudgetDirty] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskEditMode, setTaskEditMode] = useState(false);
+  const [taskEditDraft, setTaskEditDraft] = useState({ description: '', dueDate: '', assigneeId: '' });
+  const [savingTask, setSavingTask] = useState(false);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -212,12 +229,44 @@ export default function WorkspaceDetailPage() {
     }
   };
 
+  const changeOwner = async () => {
+    if (!workspaceId || !newOwnerId) return;
+    try {
+      const res = await api.put(`/workspaces/${workspaceId}`, { owner: newOwnerId });
+      setWorkspace(prev => prev ? { ...prev, owner: res.data.owner } : prev);
+      setEditingOwner(false);
+      setNewOwnerId('');
+    } catch {
+      setError('Failed to update owner.');
+    }
+  };
+
   const updateStatus = async (task: Task, status: Task['status']) => {
     try {
       const res = await api.put(`/tasks/${task._id}`, { status });
       setTasks(prev => prev.map(t => t._id === task._id ? res.data : t));
+      setSelectedTask(prev => prev?._id === task._id ? res.data : prev);
     } catch {
       alert('Failed to update task.');
+    }
+  };
+
+  const updateTaskDetail = async () => {
+    if (!selectedTask) return;
+    setSavingTask(true);
+    try {
+      const res = await api.put(`/tasks/${selectedTask._id}`, {
+        description: taskEditDraft.description,
+        dueDate: taskEditDraft.dueDate || undefined,
+        assignedTo: taskEditDraft.assigneeId ? [taskEditDraft.assigneeId] : [],
+      });
+      setTasks(prev => prev.map(t => t._id === selectedTask._id ? res.data : t));
+      setSelectedTask(res.data);
+      setTaskEditMode(false);
+    } catch {
+      alert('Failed to update task.');
+    } finally {
+      setSavingTask(false);
     }
   };
 
@@ -416,7 +465,48 @@ export default function WorkspaceDetailPage() {
             </div>
             {workspace.description && <p className="text-sm text-gray-500 mt-0.5">{workspace.description}</p>}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
-              <span>👤 Owner: {workspace.owner?.name ?? 'Unassigned'}</span>
+              <span className="flex items-center gap-2">
+                👤 Owner:{' '}
+                {editingOwner && isPresident ? (
+                  <>
+                    <select
+                      value={newOwnerId}
+                      onChange={e => setNewOwnerId(e.target.value)}
+                      className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select member</option>
+                      {members.map(m => (
+                        <option key={m._id} value={m._id}>{m.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={changeOwner}
+                      disabled={!newOwnerId}
+                      className="text-xs bg-blue-600 text-white px-2.5 py-1 rounded-lg hover:bg-blue-700 transition disabled:opacity-40"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setEditingOwner(false)}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span>{workspace.owner?.name ?? 'Unassigned'}</span>
+                    {isPresident && (
+                      <button
+                        onClick={() => { setEditingOwner(true); setNewOwnerId(workspace.owner?._id ?? ''); }}
+                        className="text-xs text-blue-500 hover:text-blue-700 underline"
+                      >
+                        Change
+                      </button>
+                    )}
+                  </>
+                )}
+              </span>
               {workspace.collaborators.length > 0 && (
                 <span>🤝 {workspace.collaborators.map(c => c.name).join(', ')}</span>
               )}
@@ -543,7 +633,6 @@ export default function WorkspaceDetailPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {budgetItems.map((item, idx) => {
-                      const isNew = !item._id;
                       return (
                         <tr key={idx} className="group">
                           <td className="py-2 pr-3">
@@ -555,26 +644,22 @@ export default function WorkspaceDetailPage() {
                             />
                           </td>
                           <td className="py-2 pr-3 text-right">
-                            {isNew ? (
-                              <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={item.assignedAmount}
-                                onChange={e => updateBudgetItem(idx, 'assignedAmount', parseFloat(e.target.value) || 0)}
-                                className="w-24 border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent text-right"
-                              />
-                            ) : (
-                              <span className="text-gray-500 text-xs">{formatCurrency(item.assignedAmount)}</span>
-                            )}
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={item.assignedAmount === 0 ? '' : item.assignedAmount}
+                              onChange={e => updateBudgetItem(idx, 'assignedAmount', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              className="w-24 border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent text-right"
+                            />
                           </td>
                           <td className="py-2 pr-3 text-right">
                             <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={item.actualAmount}
+                              type="text"
+                              inputMode="decimal"
+                              value={item.actualAmount === 0 ? '' : item.actualAmount}
                               onChange={e => updateBudgetItem(idx, 'actualAmount', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
                               className="w-24 border-0 border-b border-transparent focus:border-gray-300 focus:outline-none px-0 py-0.5 text-sm bg-transparent text-right"
                             />
                           </td>
@@ -694,8 +779,17 @@ export default function WorkspaceDetailPage() {
                             setDraggingTaskId(task._id);
                           }}
                           onDragEnd={() => setDraggingTaskId(null)}
+                          onClick={() => {
+                            setSelectedTask(task);
+                            setTaskEditMode(false);
+                            setTaskEditDraft({
+                              description: task.description ?? '',
+                              dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+                              assigneeId: task.assignedTo[0]?._id ?? '',
+                            });
+                          }}
                           className={`bg-white rounded-lg shadow-sm border border-gray-100 p-3 transition-opacity select-none
-                            ${canEditTask ? 'cursor-grab active:cursor-grabbing' : ''}
+                            ${canEditTask ? 'cursor-pointer' : 'cursor-pointer'}
                             ${isDragging ? 'opacity-40' : 'opacity-100'}`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -703,7 +797,7 @@ export default function WorkspaceDetailPage() {
                             {canActInWorkspace && (
                               <button
                                 onMouseDown={e => e.stopPropagation()}
-                                onClick={() => handleDelete(task)}
+                                onClick={e => { e.stopPropagation(); handleDelete(task); }}
                                 className="text-gray-300 hover:text-red-500 transition text-sm shrink-0"
                                 title="Delete"
                               >
@@ -726,7 +820,7 @@ export default function WorkspaceDetailPage() {
                                 <button
                                   key={c.key}
                                   onMouseDown={e => e.stopPropagation()}
-                                  onClick={() => updateStatus(task, c.key)}
+                                  onClick={e => { e.stopPropagation(); updateStatus(task, c.key); }}
                                   className="text-xs text-blue-600 hover:underline"
                                 >
                                   → {c.label}
@@ -789,6 +883,188 @@ export default function WorkspaceDetailPage() {
         </div>
 
       </div>
+
+      {/* Task detail modal */}
+      {selectedTask && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-start justify-between gap-3 px-6 pt-5 pb-4 border-b border-gray-100">
+              <div className="flex-1 min-w-0">
+                <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mb-2 ${STATUS_BADGE[selectedTask.status]}`}>
+                  {STATUS_LABEL[selectedTask.status]}
+                </span>
+                <h2 className="text-base font-bold text-gray-800 break-words">{selectedTask.title}</h2>
+              </div>
+              <button
+                onClick={() => setSelectedTask(null)}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none shrink-0 mt-0.5"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+
+              {/* Description */}
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</p>
+                {taskEditMode ? (
+                  <textarea
+                    value={taskEditDraft.description}
+                    onChange={e => setTaskEditDraft(d => ({ ...d, description: e.target.value }))}
+                    rows={3}
+                    placeholder="Add a description…"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                ) : (
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {selectedTask.description || <span className="text-gray-400 italic">No description provided.</span>}
+                  </p>
+                )}
+              </div>
+
+              {/* Grid info */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Assigned To */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Assigned To</p>
+                  {taskEditMode ? (
+                    <select
+                      value={taskEditDraft.assigneeId}
+                      onChange={e => setTaskEditDraft(d => ({ ...d, assigneeId: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Unassigned</option>
+                      {workspace?.owner && (
+                        <option value={workspace.owner._id}>{workspace.owner.name} (owner)</option>
+                      )}
+                      {workspace?.collaborators.map(c => (
+                        <option key={c._id} value={c._id}>{c.name} (collaborator)</option>
+                      ))}
+                      {memberMembers
+                        .filter(m => m._id !== workspace?.owner?._id && !workspace?.collaborators.some(c => c._id === m._id))
+                        .map(m => (
+                          <option key={m._id} value={m._id}>{m.name}</option>
+                        ))}
+                    </select>
+                  ) : selectedTask.assignedTo.length > 0 ? (
+                    <div className="space-y-1">
+                      {selectedTask.assignedTo.map(u => (
+                        <div key={u._id} className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm text-gray-700">{u.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-gray-400">Unassigned</span>
+                  )}
+                </div>
+
+                {/* Due Date */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Due Date</p>
+                  {taskEditMode ? (
+                    <input
+                      type="date"
+                      value={taskEditDraft.dueDate}
+                      onChange={e => setTaskEditDraft(d => ({ ...d, dueDate: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  ) : (
+                    <p className="text-sm text-gray-700">
+                      {selectedTask.dueDate
+                        ? new Date(selectedTask.dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : <span className="text-gray-400">No deadline set</span>}
+                    </p>
+                  )}
+                </div>
+
+                {/* Created By */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Created By</p>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">
+                      {selectedTask.createdBy?.name?.charAt(0).toUpperCase() ?? '?'}
+                    </div>
+                    <span className="text-sm text-gray-700">{selectedTask.createdBy?.name ?? '—'}</span>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                  <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[selectedTask.status]}`}>
+                    {STATUS_LABEL[selectedTask.status]}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+              <div className="flex gap-2">
+                {(canActInWorkspace || isAssignee(selectedTask)) && !taskEditMode && (
+                  COLUMNS.filter(c => c.key !== selectedTask.status).map(c => (
+                    <button
+                      key={c.key}
+                      onClick={() => updateStatus(selectedTask, c.key)}
+                      className="text-xs text-blue-600 border border-blue-200 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition font-medium"
+                    >
+                      → {c.label}
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="flex gap-2">
+                {canActInWorkspace && !taskEditMode && (
+                  <>
+                    <button
+                      onClick={() => setTaskEditMode(true)}
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => { handleDelete(selectedTask); setSelectedTask(null); }}
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 transition"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+                {taskEditMode && (
+                  <>
+                    <button
+                      onClick={() => setTaskEditMode(false)}
+                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={updateTaskDetail}
+                      disabled={savingTask}
+                      className="text-xs font-medium px-4 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                    >
+                      {savingTask ? 'Saving…' : 'Save Changes'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
