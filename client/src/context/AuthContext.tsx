@@ -47,8 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = (t: string, u: User) => {
     localStorage.setItem('token', t);
     localStorage.setItem('user', JSON.stringify(u));
+    localStorage.removeItem('selectedClub');
     setToken(t);
     setUser(u);
+    setSelectedClub(null);
   };
 
   const logout = () => {

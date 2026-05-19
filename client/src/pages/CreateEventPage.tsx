@@ -1,7 +1,9 @@
-import { useMemo, useState, useEffect } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useMemo, useRef, useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import CommitteeWorkspaceNav from '../components/CommitteeWorkspaceNav';
 import DisclaimerMarkdown from '../components/DisclaimerMarkdown';
+import PresidentWorkspaceNav from '../components/PresidentWorkspaceNav';
 import PdfPreview from '../components/PdfPreview';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -29,6 +31,7 @@ interface DraftWorkspace {
   name: string;
   description: string;
   ownerId: string;
+  dueDate: string;
 }
 
 interface BudgetLineItem {
@@ -53,12 +56,14 @@ interface EventBudgetResponse {
   };
 }
 
-const COMMITTEE_ROLES = [
-  { value: 'finance',   label: 'Finance',   icon: '💰' },
-  { value: 'logistics', label: 'Logistics', icon: '📦' },
-  { value: 'equipment', label: 'Equipment', icon: '🔧' },
-  { value: 'transport', label: 'Transport', icon: '🚗' },
-  { value: 'general',   label: 'General',   icon: '📋' },
+const ASSIGNMENT_LABEL_SUGGESTIONS = [
+  'Event lead',
+  'Budget owner',
+  'Safety owner',
+  'Logistics lead',
+  'Equipment coordinator',
+  'Marketing support',
+  'Front desk lead',
 ];
 
 const WORKSPACE_TEMPLATES = [
@@ -71,12 +76,28 @@ const WORKSPACE_TEMPLATES = [
   { type: 'tasks',     name: 'Tasks / Notes', icon: '✅', desc: 'Lightweight task delegation' },
 ];
 
-const CATEGORIES = [
-  { value: 'social',   label: 'Social',   icon: '🎉' },
-  { value: 'sports',   label: 'Sports',   icon: '⚽' },
-  { value: 'outdoor',  label: 'Outdoor',  icon: '🏕️' },
-  { value: 'finance',  label: 'Finance',  icon: '💰' },
-  { value: 'other',    label: 'Other',    icon: '📌' },
+const CATEGORY_SUGGESTIONS = [
+  'Academic',
+  'Careers',
+  'Cultural',
+  'Networking',
+  'Outdoor',
+  'Social',
+  'Sport',
+  'Volunteering',
+  'Workshop',
+];
+
+const LOCATION_SUGGESTIONS = [
+  'Deakin University Burwood Campus, Burwood VIC',
+  'Swinburne University of Technology, Hawthorn VIC',
+  'Monash University Clayton Campus, Clayton VIC',
+  'University of Melbourne Parkville Campus, Parkville VIC',
+  'RMIT University City Campus, Melbourne VIC',
+  'Federation Square, Melbourne VIC',
+  'Melbourne Convention and Exhibition Centre, South Wharf VIC',
+  'State Library Victoria, Melbourne VIC',
+  'Online',
 ];
 
 const emptyBudgetLineItem = (): BudgetLineItem => ({
@@ -104,7 +125,7 @@ export default function CreateEventPage() {
     description: '',
     date: '',
     location: '',
-    category: 'other',
+    category: '',
     status: 'published',
     capacity: '',
     rsvpDeadline: '',
@@ -112,12 +133,19 @@ export default function CreateEventPage() {
     disclaimerTemplateId: '',
   });
   const [disclaimerTemplates, setDisclaimerTemplates] = useState<DisclaimerTemplate[]>([]);
+  const [quickTemplate, setQuickTemplate] = useState({ title: '', content: '' });
+  const [quickTemplateSaving, setQuickTemplateSaving] = useState(false);
   const [assignedCommittee, setAssignedCommittee] = useState<AssignedMember[]>([]);
   const [committeeMembers, setCommitteeMembers] = useState<CommitteeMember[]>([]);
 
   // Workspace state (new event flow)
   const [workspaces, setWorkspaces] = useState<DraftWorkspace[]>([]);
   const [customName, setCustomName] = useState('');
+  const [workspaceOwnerSearch, setWorkspaceOwnerSearch] = useState<Record<number, string>>({});
+  const [openOwnerPicker, setOpenOwnerPicker] = useState<number | null>(null);
+  const ownerPickerRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const locationPickerRef = useRef<HTMLDivElement | null>(null);
 
   // Budget state
   const [budgetLineItems, setBudgetLineItems] = useState<BudgetLineItem[]>([emptyBudgetLineItem()]);
@@ -189,23 +217,73 @@ export default function CreateEventPage() {
       .catch(() => setDisclaimerTemplates([]));
   }, [selectedClub?.clubId]);
 
+  useEffect(() => {
+    if (openOwnerPicker === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const picker = ownerPickerRefs.current[openOwnerPicker];
+      if (picker && !picker.contains(event.target as Node)) {
+        setOpenOwnerPicker(null);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [openOwnerPicker]);
+
+  useEffect(() => {
+    if (!showLocationPicker) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (locationPickerRef.current && !locationPickerRef.current.contains(event.target as Node)) {
+        setShowLocationPicker(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [showLocationPicker]);
+
   const selectedTemplate = useMemo(
     () => disclaimerTemplates.find(t => t._id === form.disclaimerTemplateId) || null,
     [disclaimerTemplates, form.disclaimerTemplateId]
   );
+  const locationMatches = useMemo(() => {
+    const term = form.location.trim().toLowerCase();
+    if (!term) return LOCATION_SUGGESTIONS;
+    return LOCATION_SUGGESTIONS.filter(location => location.toLowerCase().includes(term));
+  }, [form.location]);
+
+  const createQuickTemplate = async () => {
+    if (!selectedClub?.clubId || !quickTemplate.title.trim() || !quickTemplate.content.trim()) return;
+    setQuickTemplateSaving(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('clubId', selectedClub.clubId);
+      fd.append('title', quickTemplate.title.trim());
+      fd.append('type', 'text');
+      fd.append('content', quickTemplate.content.trim());
+      const res = await api.post('/disclaimer-templates', fd);
+      setDisclaimerTemplates(prev => [res.data, ...prev]);
+      setForm(prev => ({ ...prev, requiresSafetyDisclaimer: true, disclaimerTemplateId: res.data._id }));
+      setQuickTemplate({ title: '', content: '' });
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Failed to create safety template.');
+    } finally {
+      setQuickTemplateSaving(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm(prev => {
       const next = { ...prev, [name]: value };
-      if (name === 'category' && value === 'outdoor' && prev.category !== 'outdoor') {
+      if (name === 'category' && value.toLowerCase().includes('outdoor') && !prev.category.toLowerCase().includes('outdoor')) {
         next.requiresSafetyDisclaimer = true;
       }
       return next;
     });
   };
 
-  const addCommitteeMember = () => setAssignedCommittee(prev => [...prev, { userId: '', role: 'general' }]);
+  const addCommitteeMember = () => setAssignedCommittee(prev => [...prev, { userId: '', role: '' }]);
   const updateAssignment = (index: number, field: 'userId' | 'role', value: string) =>
     setAssignedCommittee(prev => prev.map((a, i) => i === index ? { ...a, [field]: value } : a));
   const removeAssignment = (index: number) =>
@@ -216,7 +294,7 @@ export default function CreateEventPage() {
     setWorkspaces(prev => {
       const exists = prev.find(w => w.type === type);
       if (exists) return prev.filter(w => w.type !== type);
-      return [...prev, { type, name, description: '', ownerId: '' }];
+      return [...prev, { type, name, description: '', ownerId: '', dueDate: '' }];
     });
   };
   const updateWorkspace = (index: number, field: keyof DraftWorkspace, value: string) =>
@@ -226,8 +304,22 @@ export default function CreateEventPage() {
   const addCustomWorkspace = () => {
     const trimmed = customName.trim();
     if (!trimmed) return;
-    setWorkspaces(prev => [...prev, { type: 'custom', name: trimmed, description: '', ownerId: '' }]);
+    setWorkspaces(prev => [...prev, { type: 'custom', name: trimmed, description: '', ownerId: '', dueDate: '' }]);
     setCustomName('');
+  };
+  const getWorkspaceOwner = (ownerId: string) => committeeMembers.find(member => member._id === ownerId) || null;
+  const getWorkspaceOwnerOptions = (index: number) => {
+    const term = (workspaceOwnerSearch[index] || '').trim().toLowerCase();
+    if (!term) return committeeMembers;
+    return committeeMembers.filter(member => (
+      member.name.toLowerCase().includes(term) ||
+      member.email.toLowerCase().includes(term)
+    ));
+  };
+  const selectWorkspaceOwner = (index: number, member: CommitteeMember) => {
+    updateWorkspace(index, 'ownerId', member._id);
+    setWorkspaceOwnerSearch(prev => ({ ...prev, [index]: member.name }));
+    setOpenOwnerPicker(null);
   };
 
   // Budget helpers
@@ -296,6 +388,10 @@ export default function CreateEventPage() {
       setError('Please select a disclaimer template, or turn off "Requires Safety Disclaimer".');
       return;
     }
+    if (isPresident && !isEdit && workspaces.some(workspace => !workspace.ownerId)) {
+      setError('Please assign an owner to every selected workspace.');
+      return;
+    }
     setLoading(true);
     try {
       const payload: Record<string, unknown> = {
@@ -306,7 +402,7 @@ export default function CreateEventPage() {
         disclaimerTemplateId: form.requiresSafetyDisclaimer ? form.disclaimerTemplateId : null,
       };
       if (isPresident) {
-        payload.assignedCommittee = assignedCommittee.filter(a => a.userId);
+        payload.assignedCommittee = assignedCommittee.filter(a => a.userId).map(a => ({ ...a, role: a.role.trim() }));
       }
 
       let savedEventId = eventId;
@@ -333,6 +429,7 @@ export default function CreateEventPage() {
               type: w.type,
               description: w.description || undefined,
               owner: w.ownerId || undefined,
+              dueDate: w.dueDate || undefined,
             })
           ));
         }
@@ -349,14 +446,21 @@ export default function CreateEventPage() {
   const backPath = isPresident ? '/president/dashboard' : '/committee/events';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`${isPresident ? 'president-workspace bg-[#201609]' : 'committee-workspace bg-[#140f24]'} min-h-screen`}>
       <Navbar />
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="mx-auto flex max-w-7xl gap-6 px-6 py-8">
+        {isPresident ? (
+          <PresidentWorkspaceNav active="Events" />
+        ) : (
+          <CommitteeWorkspaceNav active="Events" />
+        )}
+
+        <main className="flex-1">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate(backPath)} className="text-gray-500 hover:text-gray-700 transition">
+          <button onClick={() => navigate(backPath)} className={`${isPresident ? 'text-yellow-100/80 hover:text-white' : 'text-purple-100/80 hover:text-white'} transition`}>
             ← Back
           </button>
-          <h1 className="text-2xl font-bold text-gray-800">{isEdit ? 'Edit Event' : 'Create New Event'}</h1>
+          <h1 className="text-2xl font-bold text-white">{isEdit ? 'Edit Event' : 'Create New Event'}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -370,8 +474,9 @@ export default function CreateEventPage() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
               <textarea name="description" value={form.description} onChange={handleChange} rows={3}
+                required
                 placeholder="What is this event about?"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
             </div>
@@ -381,23 +486,52 @@ export default function CreateEventPage() {
                 <input type="datetime-local" name="date" value={form.date} onChange={handleChange} required
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input name="location" value={form.location} onChange={handleChange} placeholder="e.g. Campus Hall A"
+              <div ref={locationPickerRef} className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
+                <input
+                  name="location"
+                  value={form.location}
+                  onChange={e => {
+                    handleChange(e);
+                    setShowLocationPicker(true);
+                  }}
+                  onFocus={() => setShowLocationPicker(true)}
+                  required
+                  placeholder="Start typing an address or venue"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                {showLocationPicker && locationMatches.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-64 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-2xl">
+                    {locationMatches.map(location => (
+                      <button
+                        key={location}
+                        type="button"
+                        onClick={() => {
+                          setForm(prev => ({ ...prev, location }));
+                          setShowLocationPicker(false);
+                        }}
+                        className="block w-full px-3 py-3 text-left text-sm font-medium text-gray-800 hover:bg-blue-50"
+                      >
+                        {location}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select name="category" value={form.category} onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.icon} {c.label}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category label *</label>
+                <input name="category" value={form.category} onChange={handleChange} list="category-suggestions" required
+                  placeholder="e.g. Careers, Outdoor, Networking"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <datalist id="category-suggestions">
+                  {CATEGORY_SUGGESTIONS.map(category => <option key={category} value={category} />)}
+                </datalist>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status *</label>
                 <select name="status" value={form.status} onChange={handleChange}
+                  required
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
@@ -406,14 +540,16 @@ export default function CreateEventPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Capacity *</label>
                 <input type="number" name="capacity" value={form.capacity} onChange={handleChange} min="1"
+                  required
                   placeholder="Max attendees"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">RSVP Deadline</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">RSVP Deadline *</label>
                 <input type="date" name="rsvpDeadline" value={form.rsvpDeadline} onChange={handleChange}
+                  required
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
@@ -474,22 +610,44 @@ export default function CreateEventPage() {
                   </div>
                 )}
 
-                {disclaimerTemplates.length === 0 && (
-                  <p className="text-sm text-amber-600">
-                    No templates yet.{' '}
-                    <Link
-                      to={isPresident ? '/president/disclaimers' : '/committee/disclaimers'}
-                      className="font-medium underline"
-                    >
-                      Create one first →
-                    </Link>
-                  </p>
-                )}
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900">Create a text template without leaving this event</p>
+                      <p className="mt-0.5 text-xs text-amber-700">This template is saved to the club library and can be reused on future events.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    <input
+                      value={quickTemplate.title}
+                      onChange={e => setQuickTemplate(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Template title"
+                      className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                    <textarea
+                      value={quickTemplate.content}
+                      onChange={e => setQuickTemplate(prev => ({ ...prev, content: e.target.value }))}
+                      rows={3}
+                      placeholder="Safety wording attendees must acknowledge"
+                      className="w-full resize-none rounded-lg border border-amber-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={createQuickTemplate}
+                        disabled={quickTemplateSaving || !quickTemplate.title.trim() || !quickTemplate.content.trim()}
+                        className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {quickTemplateSaving ? 'Saving...' : 'Save & Use Template'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
-          {form.category === 'finance' && (
+          {form.category.toLowerCase().includes('finance') && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex gap-3">
               <span className="text-xl">💰</span>
               <div>
@@ -503,13 +661,15 @@ export default function CreateEventPage() {
           {isPresident && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-700">Assign Committee Members</h2>
+                <h2 className="text-base font-semibold text-gray-700">Event-Level Committee Labels</h2>
                 <button type="button" onClick={addCommitteeMember} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                   + Add Member
                 </button>
               </div>
               {assignedCommittee.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">No committee members assigned yet.</p>
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Optional. Use this for broad event labels; workspace ownership controls actual task access.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {assignedCommittee.map((assignment, index) => (
@@ -519,10 +679,13 @@ export default function CreateEventPage() {
                         <option value="">Select member...</option>
                         {committeeMembers.map(m => <option key={m._id} value={m._id}>{m.name} ({m.email})</option>)}
                       </select>
-                      <select value={assignment.role} onChange={e => updateAssignment(index, 'role', e.target.value)}
-                        className="w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        {COMMITTEE_ROLES.map(r => <option key={r.value} value={r.value}>{r.icon} {r.label}</option>)}
-                      </select>
+                      <input value={assignment.role} onChange={e => updateAssignment(index, 'role', e.target.value)}
+                        list="assignment-label-suggestions"
+                        placeholder="Label, e.g. Safety lead"
+                        className="w-56 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <datalist id="assignment-label-suggestions">
+                        {ASSIGNMENT_LABEL_SUGGESTIONS.map(label => <option key={label} value={label} />)}
+                      </datalist>
                       <button type="button" onClick={() => removeAssignment(index)} className="text-gray-400 hover:text-red-500 transition text-lg">×</button>
                     </div>
                   ))}
@@ -653,15 +816,64 @@ export default function CreateEventPage() {
                         <button type="button" onClick={() => removeWorkspace(index)}
                           className="text-gray-400 hover:text-red-500 transition text-lg">×</button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <select value={w.ownerId} onChange={e => updateWorkspace(index, 'ownerId', e.target.value)}
-                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">Owner (optional)…</option>
-                          {committeeMembers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                        </select>
-                        <input value={w.description} onChange={e => updateWorkspace(index, 'description', e.target.value)}
-                          placeholder="Short description (optional)"
-                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <div className="grid gap-3 md:grid-cols-[minmax(0,1.15fr)_minmax(180px,0.75fr)_minmax(0,1fr)]">
+                        <div
+                          className="relative"
+                          ref={element => {
+                            ownerPickerRefs.current[index] = element;
+                          }}
+                        >
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Workspace owner <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            value={workspaceOwnerSearch[index] ?? getWorkspaceOwner(w.ownerId)?.name ?? ''}
+                            onChange={e => {
+                              setWorkspaceOwnerSearch(prev => ({ ...prev, [index]: e.target.value }));
+                              updateWorkspace(index, 'ownerId', '');
+                              setOpenOwnerPicker(index);
+                            }}
+                            onFocus={() => setOpenOwnerPicker(index)}
+                            placeholder="Search committee member..."
+                            className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              !w.ownerId ? 'border-red-200 bg-red-50/40' : 'border-gray-200'
+                            }`}
+                          />
+                          {openOwnerPicker === index && (
+                            <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-lg border border-gray-100 bg-white shadow-xl">
+                              {getWorkspaceOwnerOptions(index).length === 0 ? (
+                                <p className="px-3 py-3 text-sm text-gray-400">No committee members found.</p>
+                              ) : (
+                                getWorkspaceOwnerOptions(index).map(member => (
+                                  <button
+                                    key={member._id}
+                                    type="button"
+                                    onClick={() => selectWorkspaceOwner(index, member)}
+                                    className="block w-full px-3 py-2 text-left hover:bg-blue-50"
+                                  >
+                                    <span className="block text-sm font-semibold text-gray-800">{member.name}</span>
+                                    <span className="block text-xs text-gray-400">{member.email}</span>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Task deadline
+                          </label>
+                          <input type="date" value={w.dueDate} onChange={e => updateWorkspace(index, 'dueDate', e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Instructions
+                          </label>
+                          <input value={w.description} onChange={e => updateWorkspace(index, 'description', e.target.value)}
+                            placeholder="Short description / instructions"
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -701,6 +913,7 @@ export default function CreateEventPage() {
             </button>
           </div>
         </form>
+        </main>
       </div>
     </div>
   );

@@ -88,18 +88,18 @@ export default function SuperAdminOrganisationRequestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="super-admin-workspace min-h-screen bg-[#130c24]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/super-admin/dashboard')} className="text-sm text-gray-500 hover:text-gray-700">← Back</button>
-          <h1 className="text-xl font-bold text-gray-800">Organisation Registration Requests</h1>
+          <button onClick={() => navigate('/super-admin/dashboard')} className="text-sm text-purple-100/80 hover:text-white">← Back</button>
+          <h1 className="text-xl font-bold text-white">Organisation Registration Requests</h1>
         </div>
         {requests.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 p-10 text-center text-gray-500">No organisation requests yet.</div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
-            <aside className="bg-white rounded-xl border border-gray-100 p-4 h-fit">
+          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-stretch">
+            <aside className="h-[76vh] overflow-y-auto bg-white rounded-xl border border-gray-100 p-4">
               {requests.map(request => (
                 <button key={request._id} onClick={() => setSelectedId(request._id)} className={`w-full text-left rounded-lg border p-3 mb-2 ${selectedId === request._id ? 'border-purple-300 bg-purple-50' : 'border-gray-100'}`}>
                   <p className="text-sm font-semibold text-gray-800">{request.organisationName}</p>
@@ -108,32 +108,36 @@ export default function SuperAdminOrganisationRequestsPage() {
               ))}
             </aside>
             {selected && (
-              <main className="bg-white rounded-xl border border-gray-100 p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-1">Review Organisation Registration Request</h2>
-                <p className="text-sm text-gray-500 mb-6">Request Status: {selected.status.replaceAll('_', ' ')}</p>
-                <section className="border-b border-gray-100 pb-5 mb-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <ReadOnly label="Requested By" value={selected.adminFullName} />
-                  <ReadOnly label="Requester Email" value={selected.adminEmail} />
-                  <ReadOnly label="Requester Role" value={selected.adminRole} />
-                  <ReadOnly label="Submitted Organisation" value={selected.organisationName} />
-                  <ReadOnly label="Expected Clubs" value={selected.expectedClubs} />
-                  <ReadOnly label="Expected Users" value={selected.expectedUsers} />
-                  <div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Uploaded Proof</p><button onClick={viewProof} className="text-blue-600 hover:underline">{selected.proofFile.name}</button></div>
-                  <div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Official Website</p><a href={selected.officialWebsite} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{selected.officialWebsite}</a></div>
-                </section>
-                <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {Object.entries(form).map(([key, value]) => (
-                    <label key={key} className={key.includes('Description') || key === 'adminNotes' ? 'block md:col-span-2' : 'block'}>
-                      <span className="block text-sm font-medium text-gray-700 mb-1">{labelFor(key)}</span>
-                      {key.includes('Description') || key === 'adminNotes' ? (
-                        <textarea value={value} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} rows={3} className="form-input resize-none" />
-                      ) : (
-                        <input value={value} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} className="form-input" />
-                      )}
-                    </label>
-                  ))}
-                </section>
-                <div className="mt-6 flex flex-wrap gap-2">
+              <main className="flex h-[76vh] flex-col bg-white rounded-xl border border-gray-100 p-6">
+                <div className="shrink-0">
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Review Organisation Registration Request</h2>
+                  <p className="text-sm text-gray-500 mb-6">Request Status: {selected.status.replaceAll('_', ' ')}</p>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto pr-2">
+                  <section className="border-b border-gray-100 pb-5 mb-5 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <ReadOnly label="Requested By" value={selected.adminFullName} />
+                    <ReadOnly label="Requester Email" value={selected.adminEmail} />
+                    <ReadOnly label="Requester Role" value={selected.adminRole} />
+                    <ReadOnly label="Submitted Organisation" value={selected.organisationName} />
+                    <ReadOnly label="Expected Clubs" value={selected.expectedClubs} />
+                    <ReadOnly label="Expected Users" value={selected.expectedUsers} />
+                    <div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Uploaded Proof</p><button onClick={viewProof} className="text-blue-600 hover:underline">{selected.proofFile.name}</button></div>
+                    <div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Official Website</p><a href={selected.officialWebsite} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{selected.officialWebsite}</a></div>
+                  </section>
+                  <section className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Object.entries(form).map(([key, value]) => (
+                      <label key={key} className={key.includes('Description') || key === 'adminNotes' ? 'block md:col-span-2' : 'block'}>
+                        <span className="block text-sm font-medium text-gray-700 mb-1">{labelFor(key)}</span>
+                        {key.includes('Description') || key === 'adminNotes' ? (
+                          <textarea value={value} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} rows={3} className="form-input resize-none" />
+                        ) : (
+                          <input value={value} onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} className="form-input" />
+                        )}
+                      </label>
+                    ))}
+                  </section>
+                </div>
+                <div className="mt-6 flex shrink-0 flex-wrap gap-2 border-t border-gray-100 pt-4">
                   <button disabled={selected.status === 'approved' || selected.status === 'rejected' || selected.status === 'awaiting_email_confirmation'} onClick={approve} className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50">Approve & Create Organisation Workspace</button>
                   <button disabled={selected.status === 'approved' || selected.status === 'rejected'} onClick={() => setAction('more-info')} className="bg-blue-50 text-blue-700 text-sm font-semibold px-4 py-2 rounded-lg">Request More Info</button>
                   <button disabled={selected.status === 'approved' || selected.status === 'rejected'} onClick={() => setAction('reject')} className="bg-red-50 text-red-700 text-sm font-semibold px-4 py-2 rounded-lg">Reject Request</button>
@@ -144,8 +148,11 @@ export default function SuperAdminOrganisationRequestsPage() {
         )}
       </div>
       {action && selected && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+        <div
+          className="!fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => { setAction(null); setMessage(''); }}
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-gray-900 mb-2">{action === 'reject' ? 'Reject Organisation Request' : 'Request More Information'}</h2>
             <p className="text-sm text-gray-500 mb-4">This message will be sent to {selected.adminEmail}</p>
             <textarea value={message} onChange={e => setMessage(e.target.value)} rows={5} className="form-input resize-none" />

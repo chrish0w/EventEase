@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const roleBadgeStyles: Record<string, string> = {
@@ -11,26 +11,33 @@ const roleLabels: Record<string, string> = {
   president: 'President',
   committee: 'Committee',
   user: 'Member',
+  admin: 'Org Admin',
+  super_admin: 'Super Admin',
 };
 
 export default function Navbar() {
   const { user, logout, selectedClub } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/');
   };
 
-  const clubRole = selectedClub?.role;
+  const isWorkspaceRoute = location.pathname.startsWith('/president') || location.pathname.startsWith('/committee');
+  const clubRole = isWorkspaceRoute ? selectedClub?.role : undefined;
   const isSuperAdmin = user?.role === 'super_admin';
+  const isOrgAdmin = user?.role === 'admin';
   const badgeStyle = isSuperAdmin
     ? 'bg-purple-100 text-purple-800 border border-purple-300'
+    : isOrgAdmin && !clubRole
+      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
     : (roleBadgeStyles[clubRole || ''] || roleBadgeStyles.user);
-  const badgeLabel = isSuperAdmin ? 'Super Admin' : (
+  const badgeLabel = isSuperAdmin ? 'Super Admin' : isOrgAdmin && !clubRole ? 'Org Admin' : (
     clubRole === 'committee' && selectedClub?.committeeRole
       ? selectedClub.committeeRole.charAt(0).toUpperCase() + selectedClub.committeeRole.slice(1) + ' Committee'
-      : roleLabels[clubRole || ''] || 'Member'
+      : roleLabels[clubRole || user?.role || ''] || 'Member'
   );
 
   return (

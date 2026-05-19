@@ -28,6 +28,15 @@ interface Task {
   assignedTo: UserRef[];
   dueDate?: string;
   status: 'todo' | 'in_progress' | 'done';
+  completionRequest?: {
+    status: 'none' | 'pending' | 'approved' | 'rejected';
+    note?: string;
+    responseNote?: string;
+    requestedBy?: UserRef;
+    requestedAt?: string;
+    reviewedBy?: UserRef;
+    reviewedAt?: string;
+  };
   createdBy: UserRef;
 }
 
@@ -45,6 +54,15 @@ interface WorkspaceFile {
   mimetype: string;
   uploadedBy: { _id: string; name: string; email: string } | null;
   uploadedAt: string;
+}
+
+interface SafetyTemplate {
+  _id: string;
+  title: string;
+  type: 'text' | 'pdf';
+  content: string | null;
+  fileUrl?: string | null;
+  updatedAt?: string;
 }
 
 interface TemplateItem {
@@ -149,9 +167,19 @@ export default function WorkspaceDetailPage() {
   const [newOwnerId, setNewOwnerId] = useState('');
   const [budgetMsg, setBudgetMsg] = useState('');
   const [budgetDirty, setBudgetDirty] = useState(false);
+  const [safetyTemplates, setSafetyTemplates] = useState<SafetyTemplate[]>([]);
+  const [safetyDraft, setSafetyDraft] = useState({ title: '', content: '' });
+  const [safetyUploadTitle, setSafetyUploadTitle] = useState('');
+  const [safetyUploadFile, setSafetyUploadFile] = useState<File | null>(null);
+  const [safetySaving, setSafetySaving] = useState(false);
+  const [attachingSafetyId, setAttachingSafetyId] = useState<string | null>(null);
+  const [safetyMsg, setSafetyMsg] = useState('');
+  const [safetyMsgTone, setSafetyMsgTone] = useState<'success' | 'error'>('success');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskEditMode, setTaskEditMode] = useState(false);
   const [taskEditDraft, setTaskEditDraft] = useState({ description: '', dueDate: '', assigneeId: '' });
+  const [completionNote, setCompletionNote] = useState('');
+  const [reviewNote, setReviewNote] = useState('');
   const [savingTask, setSavingTask] = useState(false);
 
   useEffect(() => {
@@ -183,7 +211,7 @@ export default function WorkspaceDetailPage() {
   }, [selectedClub, isPresident]);
 
   useEffect(() => {
-    if (!workspace || workspace.type !== 'budget' || !isPresident || !selectedClub?.clubId) return;
+    if (!workspace || workspace.type !== 'budget' || isPresident || !selectedClub?.clubId) return;
     api.get(`/budget/event/${workspace.eventId}?clubId=${selectedClub.clubId}`)
       .then(res => {
         setBudgetItems(res.data.event.lineItems.map((item: BudgetLineItem) => ({
@@ -200,14 +228,74 @@ export default function WorkspaceDetailPage() {
       });
   }, [workspace, isPresident, selectedClub]);
 
+  useEffect(() => {
+    if (!workspace || workspace.type !== 'safety' || !selectedClub?.clubId) return;
+    api.get(`/disclaimer-templates?clubId=${selectedClub.clubId}`)
+      .then(res => setSafetyTemplates(res.data))
+      .catch(() => setSafetyTemplates([]));
+  }, [workspace, selectedClub?.clubId]);
+
   const canActInWorkspace = useMemo(() => {
     if (!workspace || !user) return false;
-    if (isPresident) return true;
+    if (isPresident) return false;
     if (workspace.owner?._id === user.id) return true;
     return workspace.collaborators.some(c => c._id === user.id);
   }, [workspace, user, isPresident]);
 
   const isAssignee = (task: Task) => task.assignedTo.some(u => u._id === user?.id);
+
+  const createSafetyTemplate = async (mode: 'text' | 'pdf') => {
+    if (!selectedClub?.clubId || !workspaceId) return;
+    if (mode === 'text' && (!safetyDraft.title.trim() || !safetyDraft.content.trim())) return;
+    if (mode === 'pdf' && (!safetyUploadTitle.trim() || !safetyUploadFile)) return;
+    setSafetySaving(true);
+    setSafetyMsg('');
+    setSafetyMsgTone('success');
+    try {
+      const fd = new FormData();
+      fd.append('clubId', selectedClub.clubId);
+      fd.append('workspaceId', workspaceId);
+      fd.append('type', mode);
+      if (mode === 'text') {
+        fd.append('title', safetyDraft.title.trim());
+        fd.append('content', safetyDraft.content.trim());
+      } else {
+        fd.append('title', safetyUploadTitle.trim());
+        fd.append('file', safetyUploadFile as File);
+      }
+      const res = await api.post('/disclaimer-templates', fd);
+      setSafetyTemplates(prev => [res.data, ...prev]);
+      setSafetyDraft({ title: '', content: '' });
+      setSafetyUploadTitle('');
+      setSafetyUploadFile(null);
+      setSafetyMsgTone('success');
+      setSafetyMsg('Safety disclaimer saved. Select it below to attach it to this event.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setSafetyMsgTone('error');
+      setSafetyMsg(msg || 'Failed to save safety disclaimer.');
+    } finally {
+      setSafetySaving(false);
+    }
+  };
+
+  const attachSafetyDisclaimer = async (templateId: string) => {
+    if (!workspaceId) return;
+    setAttachingSafetyId(templateId);
+    setSafetyMsg('');
+    setSafetyMsgTone('success');
+    try {
+      await api.put(`/workspaces/${workspaceId}/safety-disclaimer`, { templateId });
+      setSafetyMsgTone('success');
+      setSafetyMsg('Safety disclaimer attached to this event.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setSafetyMsgTone('error');
+      setSafetyMsg(msg || 'Failed to attach safety disclaimer.');
+    } finally {
+      setAttachingSafetyId(null);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,6 +353,36 @@ export default function WorkspaceDetailPage() {
       setTaskEditMode(false);
     } catch {
       alert('Failed to update task.');
+    } finally {
+      setSavingTask(false);
+    }
+  };
+
+  const submitCompletionRequest = async () => {
+    if (!selectedTask) return;
+    setSavingTask(true);
+    try {
+      const res = await api.post(`/tasks/${selectedTask._id}/completion-request`, { note: completionNote });
+      setTasks(prev => prev.map(t => t._id === selectedTask._id ? res.data : t));
+      setSelectedTask(res.data);
+      setCompletionNote('');
+    } catch {
+      alert('Failed to submit completion request.');
+    } finally {
+      setSavingTask(false);
+    }
+  };
+
+  const reviewCompletionRequest = async (decision: 'approved' | 'rejected') => {
+    if (!selectedTask) return;
+    setSavingTask(true);
+    try {
+      const res = await api.put(`/tasks/${selectedTask._id}/completion-request`, { decision, responseNote: reviewNote });
+      setTasks(prev => prev.map(t => t._id === selectedTask._id ? res.data : t));
+      setSelectedTask(res.data);
+      setReviewNote('');
+    } catch {
+      alert('Failed to review completion request.');
     } finally {
       setSavingTask(false);
     }
@@ -419,7 +537,7 @@ export default function WorkspaceDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className={`${isPresident ? 'president-workspace bg-[#201609]' : 'committee-workspace bg-[#140f24]'} min-h-screen`}>
         <Navbar />
         <div className="max-w-7xl mx-auto px-6 py-8 text-center text-gray-400">Loading workspace...</div>
       </div>
@@ -428,7 +546,7 @@ export default function WorkspaceDetailPage() {
 
   if (!workspace) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className={`${isPresident ? 'president-workspace bg-[#201609]' : 'committee-workspace bg-[#140f24]'} min-h-screen`}>
         <Navbar />
         <div className="max-w-7xl mx-auto px-6 py-8 text-center text-gray-500">Workspace not found.</div>
       </div>
@@ -445,7 +563,7 @@ export default function WorkspaceDetailPage() {
   const accent = ACCENTS[workspace.type] ?? ACCENTS.logistics;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`${isPresident ? 'president-workspace bg-[#201609]' : 'committee-workspace bg-[#140f24]'} min-h-screen`}>
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8">
 
@@ -453,18 +571,18 @@ export default function WorkspaceDetailPage() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate(`/${isPresident ? 'president' : 'committee'}/events/${workspace.eventId}/workspaces`)}
-            className="text-gray-500 hover:text-gray-700 transition"
+            className={`${isPresident ? 'text-yellow-100/80 hover:text-white' : 'text-purple-100/80 hover:text-white'} transition`}
           >
             ← Back
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-lg">{TYPE_ICONS[workspace.type] ?? '📌'}</span>
-              <h1 className="text-xl font-bold text-gray-800">{workspace.name}</h1>
-              <span className="text-xs text-gray-400">({workspace.type})</span>
+              <h1 className="text-xl font-bold text-white">{workspace.name}</h1>
+              <span className={`${isPresident ? 'text-yellow-100/70' : 'text-purple-100/70'} text-xs`}>({workspace.type})</span>
             </div>
-            {workspace.description && <p className="text-sm text-gray-500 mt-0.5">{workspace.description}</p>}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
+            {workspace.description && <p className={`${isPresident ? 'text-yellow-100/80' : 'text-purple-100/80'} mt-0.5 text-sm`}>{workspace.description}</p>}
+            <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm ${isPresident ? 'text-yellow-100/80' : 'text-purple-100/80'}`}>
               <span className="flex items-center gap-2">
                 👤 Owner:{' '}
                 {editingOwner && isPresident ? (
@@ -496,14 +614,6 @@ export default function WorkspaceDetailPage() {
                 ) : (
                   <>
                     <span>{workspace.owner?.name ?? 'Unassigned'}</span>
-                    {isPresident && (
-                      <button
-                        onClick={() => { setEditingOwner(true); setNewOwnerId(workspace.owner?._id ?? ''); }}
-                        className="text-xs text-blue-500 hover:text-blue-700 underline"
-                      >
-                        Change
-                      </button>
-                    )}
                   </>
                 )}
               </span>
@@ -589,8 +699,8 @@ export default function WorkspaceDetailPage() {
           </form>
         )}
 
-        {/* Budget line items — only visible on budget workspace for presidents */}
-        {workspace.type === 'budget' && isPresident && (
+        {/* Budget line items are completed by assigned budget workspace owners/collaborators. */}
+        {workspace.type === 'budget' && canActInWorkspace && (
           <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-800">💰 Budget Line Items</h2>
@@ -695,6 +805,104 @@ export default function WorkspaceDetailPage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {workspace.type === 'safety' && canActInWorkspace && (
+          <div className="mb-6 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-800">⚠️ Safety Disclaimers</h2>
+                <p className="mt-0.5 text-sm text-gray-500">Create or upload a reusable safety disclaimer, then attach it to this event.</p>
+              </div>
+              {safetyMsg && (
+                <span className={`max-w-md text-right text-xs font-medium ${safetyMsgTone === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+                  {safetyMsg}
+                </span>
+              )}
+            </div>
+            <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
+              <div className="space-y-4 rounded-lg border border-amber-100 bg-amber-50 p-4">
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-amber-900">Create new text disclaimer</p>
+                <input
+                  value={safetyDraft.title}
+                  onChange={e => setSafetyDraft(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Safety disclaimer title"
+                  className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
+                <textarea
+                  value={safetyDraft.content}
+                  onChange={e => setSafetyDraft(prev => ({ ...prev, content: e.target.value }))}
+                  rows={5}
+                  placeholder="Write the safety disclaimer or risk acknowledgement here..."
+                  className="w-full resize-none rounded-lg border border-amber-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                />
+                <button
+                  type="button"
+                    onClick={() => createSafetyTemplate('text')}
+                  disabled={safetySaving || !safetyDraft.title.trim() || !safetyDraft.content.trim()}
+                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                    {safetySaving ? 'Saving...' : 'Save Text Disclaimer'}
+                </button>
+                </div>
+                <div className="border-t border-amber-200 pt-4">
+                  <p className="text-sm font-semibold text-amber-900">Upload PDF disclaimer</p>
+                  <div className="mt-3 space-y-3">
+                    <input
+                      value={safetyUploadTitle}
+                      onChange={e => setSafetyUploadTitle(e.target.value)}
+                      placeholder="Uploaded disclaimer title"
+                      className="w-full rounded-lg border border-amber-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={e => setSafetyUploadFile(e.target.files?.[0] || null)}
+                      className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => createSafetyTemplate('pdf')}
+                      disabled={safetySaving || !safetyUploadTitle.trim() || !safetyUploadFile}
+                      className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {safetySaving ? 'Uploading...' : 'Upload PDF Disclaimer'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-100 p-4">
+                <h3 className="text-sm font-semibold text-gray-800">Saved safety disclaimers</h3>
+                {safetyTemplates.length === 0 ? (
+                  <p className="mt-4 text-sm text-gray-400">No saved safety disclaimers yet.</p>
+                ) : (
+                  <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+                    {safetyTemplates.map(template => (
+                      <div key={template._id} className="rounded-lg bg-gray-50 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{template.title}</p>
+                            <p className="mt-1 line-clamp-2 text-xs text-gray-500">
+                              {template.type === 'pdf' ? 'PDF safety disclaimer' : template.content}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => attachSafetyDisclaimer(template._id)}
+                            disabled={attachingSafetyId === template._id}
+                            className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {attachingSafetyId === template._id ? 'Attaching...' : 'Attach'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -808,12 +1016,15 @@ export default function WorkspaceDetailPage() {
                           {task.description && (
                             <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
                           )}
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-gray-500">
-                            {task.dueDate && <span>📅 {new Date(task.dueDate).toLocaleDateString('en-AU')}</span>}
-                            {task.assignedTo.length > 0 && (
-                              <span>👤 {task.assignedTo.map(u => u.name).join(', ')}</span>
-                            )}
-                          </div>
+	                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-gray-500">
+	                            {task.dueDate && <span>📅 {new Date(task.dueDate).toLocaleDateString('en-AU')}</span>}
+	                            {task.assignedTo.length > 0 && (
+	                              <span>👤 {task.assignedTo.map(u => u.name).join(', ')}</span>
+	                            )}
+                              {task.completionRequest?.status === 'pending' && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">Awaiting approval</span>
+                              )}
+	                          </div>
                           {canEditTask && (
                             <div className="flex gap-1 mt-2">
                               {COLUMNS.filter(c => c.key !== col.key).map(c => (
@@ -887,7 +1098,7 @@ export default function WorkspaceDetailPage() {
       {/* Task detail modal */}
       {selectedTask && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          className="!fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
           onClick={() => setSelectedTask(null)}
         >
           <div
@@ -1009,6 +1220,76 @@ export default function WorkspaceDetailPage() {
                   </span>
                 </div>
               </div>
+
+              {selectedTask.completionRequest?.status && selectedTask.completionRequest.status !== 'none' && (
+                <div className={`rounded-xl border p-3 ${
+                  selectedTask.completionRequest.status === 'approved'
+                    ? 'border-green-200 bg-green-50'
+                    : selectedTask.completionRequest.status === 'rejected'
+                      ? 'border-red-200 bg-red-50'
+                      : 'border-amber-200 bg-amber-50'
+                }`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Completion request</p>
+                  <p className="mt-1 text-sm text-gray-700">
+                    Status: <span className="font-semibold capitalize">{selectedTask.completionRequest.status}</span>
+                  </p>
+                  {selectedTask.completionRequest.note && (
+                    <p className="mt-2 text-sm text-gray-600">{selectedTask.completionRequest.note}</p>
+                  )}
+                  {selectedTask.completionRequest.responseNote && (
+                    <p className="mt-2 text-sm text-gray-600">President response: {selectedTask.completionRequest.responseNote}</p>
+                  )}
+                </div>
+              )}
+
+              {!isPresident && isAssignee(selectedTask) && selectedTask.status !== 'done' && selectedTask.completionRequest?.status !== 'pending' && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <p className="text-sm font-semibold text-blue-900">Finished this task?</p>
+                  <textarea
+                    value={completionNote}
+                    onChange={e => setCompletionNote(e.target.value)}
+                    rows={2}
+                    placeholder="Optional note for the president..."
+                    className="mt-2 w-full resize-none rounded-lg border border-blue-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  />
+                  <button
+                    onClick={submitCompletionRequest}
+                    disabled={savingTask}
+                    className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Submit completion request
+                  </button>
+                </div>
+              )}
+
+              {isPresident && selectedTask.completionRequest?.status === 'pending' && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm font-semibold text-amber-900">Review completion request</p>
+                  <textarea
+                    value={reviewNote}
+                    onChange={e => setReviewNote(e.target.value)}
+                    rows={2}
+                    placeholder="Optional response note..."
+                    className="mt-2 w-full resize-none rounded-lg border border-amber-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      onClick={() => reviewCompletionRequest('approved')}
+                      disabled={savingTask}
+                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => reviewCompletionRequest('rejected')}
+                      disabled={savingTask}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal footer */}

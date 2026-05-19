@@ -9,8 +9,18 @@ const workspaceSchema = new mongoose.Schema({
   type: { type: String, enum: WORKSPACE_TYPES, default: 'custom' },
   description: String,
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  dueDate: Date,
   collaborators: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   status: { type: String, enum: WORKSPACE_STATUS, default: 'not_started' },
+  closeoutRequest: {
+    status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+    note: String,
+    responseNote: String,
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    requestedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: Date,
+  },
   resourceLinks: [{
     label: String,
     url: String,

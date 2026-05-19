@@ -223,10 +223,11 @@ router.get('/browse/all', auth, async (req, res) => {
       .populate('createdBy', 'name email')
       .sort({ date: 1 });
     const rsvps = await EventRsvp.find({ userId: req.user.id, eventId: { $in: events.map(event => event._id) }, status: 'going' });
-    const rsvpIds = new Set(rsvps.map(rsvp => rsvp.eventId.toString()));
+    const rsvpByEvent = Object.fromEntries(rsvps.map(rsvp => [rsvp.eventId.toString(), rsvp]));
     res.json(events.map(event => ({
       ...event.toObject(),
-      rsvped: rsvpIds.has(event._id.toString()),
+      rsvped: Boolean(rsvpByEvent[event._id.toString()]),
+      rsvp: rsvpByEvent[event._id.toString()] || null,
     })));
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -238,12 +239,16 @@ router.get('/rsvps/my', auth, async (req, res) => {
     const rsvps = await EventRsvp.find({ userId: req.user.id, status: 'going' })
       .populate({
         path: 'eventId',
-        populate: { path: 'clubId', select: 'name category logoUrl' },
+        populate: { path: 'clubId', select: 'name category logoUrl orgId', populate: { path: 'orgId', select: 'name' } },
       })
       .sort({ createdAt: -1 });
     res.json(rsvps.filter(rsvp => rsvp.eventId).map(rsvp => ({
       _id: rsvp._id,
       status: rsvp.status,
+      attendeeName: rsvp.attendeeName,
+      contactNumber: rsvp.contactNumber,
+      notes: rsvp.notes,
+      agreedSafetyDisclaimer: rsvp.agreedSafetyDisclaimer,
       event: rsvp.eventId,
     })));
   } catch (err) {
@@ -253,13 +258,25 @@ router.get('/rsvps/my', auth, async (req, res) => {
 
 router.post('/:id/rsvp', auth, async (req, res) => {
   try {
+    const { attendeeName, contactNumber, notes, agreedSafetyDisclaimer } = req.body;
     const event = await Event.findById(req.params.id);
     if (!event || event.status !== 'published') return res.status(404).json({ message: 'Published event not found' });
     const club = await Club.findById(event.clubId);
     if (!club) return res.status(404).json({ message: 'Club not found' });
+    if (event.requiresSafetyDisclaimer && !agreedSafetyDisclaimer) {
+      return res.status(400).json({ message: 'Please acknowledge the safety disclaimer before RSVPing.' });
+    }
     const rsvp = await EventRsvp.findOneAndUpdate(
       { userId: req.user.id, eventId: event._id },
-      { userId: req.user.id, eventId: event._id, status: 'going' },
+      {
+        userId: req.user.id,
+        eventId: event._id,
+        status: 'going',
+        attendeeName,
+        contactNumber,
+        notes,
+        agreedSafetyDisclaimer: Boolean(agreedSafetyDisclaimer),
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     res.status(201).json(rsvp);

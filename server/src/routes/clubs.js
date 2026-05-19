@@ -8,6 +8,7 @@ const User = require('../models/User');
 const ClubInvitation = require('../models/ClubInvitation');
 const ClubFollow = require('../models/ClubFollow');
 const Event = require('../models/Event');
+const EventRsvp = require('../models/EventRsvp');
 
 async function getAdminOrgId(userId) {
   const a = await OrgAdminAssignment.findOne({ userId });
@@ -101,20 +102,27 @@ router.get('/:id/detail', auth, async (req, res) => {
   try {
     const club = await Club.findById(req.params.id).populate('orgId', 'name description');
     if (!club) return res.status(404).json({ message: 'Club not found' });
-    const [follow, membership, followers, events] = await Promise.all([
+    const [follow, membership, followers, events, rsvps] = await Promise.all([
       ClubFollow.findOne({ userId: req.user.id, clubId: club._id }),
       ClubMembership.findOne({ userId: req.user.id, clubId: club._id }),
       ClubFollow.countDocuments({ clubId: club._id }),
       Event.find({ clubId: club._id, status: 'published', date: { $gte: new Date() } })
         .sort({ date: 1 })
         .limit(6),
+      EventRsvp.find({ userId: req.user.id, status: 'going' }),
     ]);
+    const rsvpByEvent = Object.fromEntries(rsvps.map(rsvp => [rsvp.eventId.toString(), rsvp]));
     res.json({
       ...club.toObject(),
       following: Boolean(follow),
       membershipRole: membership?.role || null,
       followers,
-      upcomingEvents: events,
+      upcomingEvents: events.map(event => ({
+        ...event.toObject(),
+        clubId: { _id: club._id, name: club.name, category: club.category, logoUrl: club.logoUrl, orgId: club.orgId },
+        rsvped: Boolean(rsvpByEvent[event._id.toString()]),
+        rsvp: rsvpByEvent[event._id.toString()] || null,
+      })),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -313,19 +321,109 @@ router.put('/:id/requests/:requestId', auth, async (req, res) => {
   }
 });
 
-// Promote member to committee (president only)
+// Update committee label (president only)
 router.put('/:id/members/:userId/role', auth, async (req, res) => {
   try {
     const presidentMembership = await ClubMembership.findOne({ userId: req.user.id, clubId: req.params.id });
     if (!presidentMembership || presidentMembership.role !== 'president')
       return res.status(403).json({ message: 'President only' });
+    if (req.body.role !== 'committee') {
+      return res.status(400).json({ message: 'Club members can only be committee members. Remove them from the club instead.' });
+    }
+    const update = { $set: { role: 'committee', committeeRole: String(req.body.committeeRole || 'general').trim() || 'general' } };
     const updated = await ClubMembership.findOneAndUpdate(
       { userId: req.params.userId, clubId: req.params.id },
-      { role: req.body.role, committeeRole: req.body.committeeRole },
+      update,
       { new: true }
     );
     if (!updated) return res.status(404).json({ message: 'Member not found' });
     res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Remove a non-president from the club (president only)
+router.delete('/:id/members/:userId', auth, async (req, res) => {
+  try {
+    const presidentMembership = await ClubMembership.findOne({ userId: req.user.id, clubId: req.params.id });
+    if (!presidentMembership || presidentMembership.role !== 'president') {
+      return res.status(403).json({ message: 'President only' });
+    }
+    const targetMembership = await ClubMembership.findOne({ userId: req.params.userId, clubId: req.params.id });
+    if (!targetMembership) return res.status(404).json({ message: 'Member not found' });
+    if (targetMembership.role === 'president') {
+      return res.status(400).json({ message: 'Cannot remove the club president from this page.' });
+    }
+    await targetMembership.deleteOne();
+    res.json({ message: 'Member removed from club' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Search platform users to add to a club committee (president only)
+router.get('/:id/member-search', auth, async (req, res) => {
+  try {
+    const presidentMembership = await ClubMembership.findOne({ userId: req.user.id, clubId: req.params.id });
+    if (!presidentMembership || presidentMembership.role !== 'president') {
+      return res.status(403).json({ message: 'President only' });
+    }
+
+    const term = String(req.query.q || '').trim();
+    if (term.length < 2) return res.json([]);
+
+    const existingMemberships = await ClubMembership.find({ clubId: req.params.id }, 'userId');
+    const existingUserIds = existingMemberships.map(membership => membership.userId);
+    const users = await User.find(
+      {
+        _id: { $nin: existingUserIds },
+        role: { $nin: ['admin', 'super_admin'] },
+        $or: [
+          { name: { $regex: term, $options: 'i' } },
+          { email: { $regex: term, $options: 'i' } },
+          { studentId: { $regex: term, $options: 'i' } },
+        ],
+      },
+      'name email studentId'
+    )
+      .sort({ name: 1 })
+      .limit(8);
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Add a platform user to the club committee (president only)
+router.post('/:id/members', auth, async (req, res) => {
+  try {
+    const presidentMembership = await ClubMembership.findOne({ userId: req.user.id, clubId: req.params.id });
+    if (!presidentMembership || presidentMembership.role !== 'president') {
+      return res.status(403).json({ message: 'President only' });
+    }
+
+    const user = await User.findById(req.body.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (['admin', 'super_admin'].includes(user.role)) {
+      return res.status(400).json({ message: 'Admin-level users cannot be added to club committees.' });
+    }
+
+    const membership = await ClubMembership.findOneAndUpdate(
+      { userId: user._id, clubId: req.params.id },
+      {
+        $set: {
+          userId: user._id,
+          clubId: req.params.id,
+          role: 'committee',
+          committeeRole: String(req.body.committeeRole || 'general').trim() || 'general',
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).populate('userId', 'name email studentId');
+
+    res.status(201).json(membership);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }

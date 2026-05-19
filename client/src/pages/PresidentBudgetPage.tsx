@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import PresidentWorkspaceNav from '../components/PresidentWorkspaceNav';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -57,23 +57,6 @@ const INCOME_SOURCE_CONFIG: Array<{ key: IncomeSourceKey; label: string; color: 
   { key: 'eventIncome', label: 'Event Income', color: '#16a34a' },
   { key: 'sponsorship', label: 'Sponsorship', color: '#d97706' },
   { key: 'others', label: 'Others', color: '#64748b' },
-];
-
-// const sidebarLinks = [
-//   { label: 'Dashboard', path: '/president/dashboard' },
-//   { label: 'Events', path: '/president/events' },
-//   { label: 'Tasks', path: null },
-//   { label: 'Budget', path: '/president/budget' },
-//   { label: 'Members', path: '/president/members' },
-//   { label: 'Safety Files', path: null },
-// ];
-
-const sidebarLinks = [
-  { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
-  { icon: '📅', label: 'Events', path: '/president/events' },
-  { icon: '💰', label: 'Budget', path: '/president/budget' },
-  { icon: '👥', label: 'Members', path: '/president/members' },
-  { icon: '⚠️', label: 'Safety Disclaimers', path: '/president/disclaimers' },
 ];
 
 function formatCurrency(value: number) {
@@ -139,7 +122,6 @@ function SemiPieChart({ items, total }: { items: Array<{ color: string; amount: 
 }
 
 export default function PresidentBudgetPage() {
-  const navigate = useNavigate();
   const { selectedClub } = useAuth();
   const [budget, setBudget] = useState<BudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -166,7 +148,10 @@ export default function PresidentBudgetPage() {
         const incomeSources = { ...EMPTY_INCOME_SOURCES, ...(res.data.incomeSources || {}) };
         setBudget({ ...res.data, incomeSources });
       })
-      .catch(() => setError('Failed to load budget.'))
+      .catch((err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setError(msg || 'Failed to load budget.');
+      })
       .finally(() => setLoading(false));
   };
 
@@ -262,37 +247,17 @@ export default function PresidentBudgetPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="president-workspace min-h-screen bg-[#201609]">
       <Navbar />
       <div className="mx-auto flex max-w-7xl gap-6 px-6 py-8">
-        <aside className="w-56 shrink-0">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Navigation</p>
-            <nav className="space-y-1">
-              {sidebarLinks.map(link => (
-                <a
-                  key={link.label}
-                  href="#"
-                  onClick={e => { e.preventDefault(); if (link.path) navigate(link.path); }}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
-                    link.label === 'Budget'
-                      ? 'bg-yellow-50 font-medium text-yellow-800'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {link.label}
-                </a>
-              ))}
-            </nav>
-          </div>
-        </aside>
+        <PresidentWorkspaceNav active="Club Budget" />
 
         <main className="flex-1 space-y-6">
           <section className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-medium text-gray-500">{selectedClub?.clubName || 'Club'}</p>
-                <h1 className="mt-1 text-3xl font-bold text-gray-900">Budget</h1>
+                <h1 className="mt-1 text-3xl font-bold text-gray-900">Club Budget</h1>
               </div>
               <button
                 type="button"
@@ -389,9 +354,9 @@ export default function PresidentBudgetPage() {
                 <p className="mt-1 text-sm text-gray-400">Create an event and save its budget to populate this report.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <div className="max-h-[32rem] overflow-auto rounded-xl border border-gray-200">
                 <table className="min-w-full border-collapse text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10">
                     <tr className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                       <th className="border-b border-gray-200 px-4 py-3">Events</th>
                       <th className="border-b border-gray-200 px-4 py-3 text-right">Event Budget</th>
@@ -438,8 +403,11 @@ export default function PresidentBudgetPage() {
       </div>
 
       {isIncomeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl">
+        <div
+          className="!fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4"
+          onClick={() => setIsIncomeModalOpen(false)}
+        >
+          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl" onClick={event => event.stopPropagation()}>
             <form onSubmit={addIncomeSources}>
               <div className="border-b border-gray-100 px-6 py-4">
                 <h3 className="text-lg font-semibold text-gray-900">Add Income</h3>
@@ -491,8 +459,11 @@ export default function PresidentBudgetPage() {
       )}
 
       {detailsEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
-          <div className="w-full max-w-4xl rounded-xl bg-white shadow-xl">
+        <div
+          className="!fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 py-6"
+          onClick={() => setDetailsEvent(null)}
+        >
+          <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white shadow-xl" onClick={event => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{detailsEvent.name}</h3>
@@ -507,7 +478,7 @@ export default function PresidentBudgetPage() {
               </button>
             </div>
 
-            <div className="px-6 py-5">
+            <div className="overflow-y-auto px-6 py-5">
               {detailsEvent.lineItems.length === 0 ? (
                 <div className="rounded-xl border border-gray-100 bg-gray-50 py-12 text-center">
                   <p className="text-sm font-medium text-gray-500">No budget rows saved for this event.</p>

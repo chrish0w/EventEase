@@ -5,6 +5,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import UserDashboard from './pages/UserDashboard';
 import CommitteeDashboard from './pages/CommitteeDashboard';
+import CommitteeMembersPage from './pages/CommitteeMembersPage';
+import CommitteeAssignedWorkPage from './pages/CommitteeAssignedWorkPage';
 import PresidentDashboard from './pages/PresidentDashboard';
 import CreateEventPage from './pages/CreateEventPage';
 import CommitteeEventsPage from './pages/CommitteeEventsPage';
@@ -14,10 +16,8 @@ import ClubSelectPage from './pages/ClubSelectPage';
 import JoinClubPage from './pages/JoinClubPage';
 import AdminDashboard from './pages/AdminDashboard';
 import PresidentMembersPage from './pages/PresidentMembersPage';
-import DisclaimersPage from './pages/DisclaimersPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import SuperAdminOrgsPage from './pages/SuperAdminOrgsPage';
-import SuperAdminOrgAdminsPage from './pages/SuperAdminOrgAdminsPage';
 import SuperAdminUsersPage from './pages/SuperAdminUsersPage';
 import SuperAdminOrganisationRequestsPage from './pages/SuperAdminOrganisationRequestsPage';
 import ClubRegistrationRequestPage from './pages/ClubRegistrationRequestPage';
@@ -78,12 +78,13 @@ export default function App() {
           <Route path="/president/events/create" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/president/events/:id/edit" element={<PrivateRoute requiredRole="president"><CreateEventPage /></PrivateRoute>} />
           <Route path="/committee/events" element={<PrivateRoute requiredRole="committee"><CommitteeEventsPage /></PrivateRoute>} />
+          <Route path="/committee/assigned-work" element={<PrivateRoute><CommitteeAssignedWorkPage /></PrivateRoute>} />
+          <Route path="/committee/assigned" element={<PrivateRoute><CommitteeAssignedWorkPage /></PrivateRoute>} />
+          <Route path="/committee/members" element={<PrivateRoute requiredRole="committee"><CommitteeMembersPage /></PrivateRoute>} />
           <Route path="/president/members" element={<PrivateRoute requiredRole="president"><PresidentMembersPage /></PrivateRoute>} />
           <Route path="/president/events/:id/workspaces" element={<PrivateRoute requiredRole="president"><EventWorkspacesPage /></PrivateRoute>} />
           <Route path="/committee/events/:id/workspaces" element={<PrivateRoute requiredRole="committee"><EventWorkspacesPage /></PrivateRoute>} />
           <Route path="/workspaces/:id" element={<PrivateRoute><WorkspaceDetailPage /></PrivateRoute>} />
-          <Route path="/president/disclaimers" element={<PrivateRoute requiredRole="president"><DisclaimersPage /></PrivateRoute>} />
-          <Route path="/committee/disclaimers" element={<PrivateRoute requiredRole="committee"><DisclaimersPage /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

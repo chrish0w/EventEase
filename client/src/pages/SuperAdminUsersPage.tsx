@@ -38,12 +38,12 @@ export default function SuperAdminUsersPage() {
   }, [users, search, roleFilter]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="super-admin-workspace min-h-screen bg-[#130c24]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate('/super-admin/dashboard')} className="text-sm text-gray-500 hover:text-gray-700">← Back</button>
-          <h1 className="text-xl font-bold text-gray-800">Users & Roles</h1>
+          <button onClick={() => navigate('/super-admin/dashboard')} className="text-sm text-purple-100/80 hover:text-white">← Back</button>
+          <h1 className="text-xl font-bold text-white">Users & Roles</h1>
         </div>
         <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
@@ -60,7 +60,7 @@ export default function SuperAdminUsersPage() {
               </select>
             </div>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="max-h-[68vh] overflow-y-auto pr-2 divide-y divide-gray-100">
             {filtered.map(user => (
               <div key={user._id} className="py-3 flex items-start justify-between gap-4">
                 <div>

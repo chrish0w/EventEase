@@ -10,6 +10,15 @@ const taskSchema = new mongoose.Schema({
   assignedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   dueDate: Date,
   status: { type: String, enum: TASK_STATUS, default: 'todo' },
+  completionRequest: {
+    status: { type: String, enum: ['none', 'pending', 'approved', 'rejected'], default: 'none' },
+    note: String,
+    responseNote: String,
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    requestedAt: Date,
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: Date,
+  },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
 }, { timestamps: true });
 

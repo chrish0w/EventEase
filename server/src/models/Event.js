@@ -2,30 +2,22 @@ const mongoose = require('mongoose');
 
 const committeeAssignmentSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  role: {
-    type: String,
-    enum: ['finance', 'logistics', 'equipment', 'transport', 'general'],
-    default: 'general'
-  }
+  role: { type: String, trim: true, default: '' }
 }, { _id: false });
 
 const eventSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  description: String,
+  description: { type: String, required: true, trim: true },
   date: { type: Date, required: true },
-  location: String,
-  category: {
-    type: String,
-    enum: ['social', 'sports', 'outdoor', 'finance', 'other'],
-    default: 'other'
-  },
+  location: { type: String, required: true, trim: true },
+  category: { type: String, required: true, trim: true, default: 'General' },
   status: {
     type: String,
     enum: ['draft', 'published', 'cancelled'],
     default: 'draft'
   },
-  capacity: Number,
-  rsvpDeadline: Date,
+  capacity: { type: Number, required: true },
+  rsvpDeadline: { type: Date, required: true },
   requiresSafetyDisclaimer: { type: Boolean, default: false },
   disclaimerTemplateId: { type: mongoose.Schema.Types.ObjectId, ref: 'DisclaimerTemplate', default: null },
   disclaimerTitle: { type: String, default: null },

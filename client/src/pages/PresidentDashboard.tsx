@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import PresidentWorkspaceNav from '../components/PresidentWorkspaceNav';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 
@@ -26,19 +27,10 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-600',
 };
 
-const sidebarLinks = [
-  { icon: '🏠', label: 'Dashboard', path: '/president/dashboard' },
-  { icon: '←', label: 'Explore Portal', path: '/user/dashboard' },
-  { icon: '📅', label: 'Events', path: '/president/events' },
-  { icon: '💰', label: 'Budget', path: '/president/budget' },
-  { icon: '👥', label: 'Members', path: '/president/members' },
-  { icon: '⚠️', label: 'Safety Disclaimers', path: '/president/disclaimers' },
-];
-
-interface JoinRequest {
+interface ClubMember {
   _id: string;
-  userId: { _id: string; name: string; email: string; studentId?: string };
-  message?: string;
+  role?: 'president' | 'committee' | 'user';
+  committeeRole?: string;
 }
 
 function formatCurrency(value: number) {
@@ -54,7 +46,7 @@ export default function PresidentDashboard() {
   const navigate = useNavigate();
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
-  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [members, setMembers] = useState<ClubMember[]>([]);
   const [remainingBudget, setRemainingBudget] = useState(0);
 
   useEffect(() => {
@@ -67,9 +59,9 @@ export default function PresidentDashboard() {
 
   useEffect(() => {
     if (!selectedClub?.clubId) return;
-    api.get(`/clubs/${selectedClub.clubId}/requests`)
-      .then(res => setJoinRequests(res.data))
-      .catch(() => {});
+    api.get(`/clubs/${selectedClub.clubId}/members`)
+      .then(res => setMembers(res.data))
+      .catch(() => setMembers([]));
   }, [selectedClub]);
 
   useEffect(() => {
@@ -79,58 +71,74 @@ export default function PresidentDashboard() {
       .catch(() => setRemainingBudget(0));
   }, [selectedClub]);
 
-  const handleRequest = async (requestId: string, status: 'approved' | 'rejected') => {
-    if (!selectedClub?.clubId) return;
-    try {
-      await api.put(`/clubs/${selectedClub.clubId}/requests/${requestId}`, { status });
-      setJoinRequests(prev => prev.filter(r => r._id !== requestId));
-    } catch {
-      alert('Failed to update request.');
-    }
-  };
+  const { completedEvents, upcomingEvents } = useMemo(() => {
+    const now = new Date();
+    return {
+      completedEvents: events
+        .filter(event => new Date(event.date) < now)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      upcomingEvents: events
+        .filter(event => new Date(event.date) >= now)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    };
+  }, [events]);
 
-  const handleDeleteEvent = async (id: string) => {
-    if (!confirm('Delete this event?')) return;
-    try {
-      await api.delete(`/events/${id}`);
-      setEvents(prev => prev.filter(e => e._id !== id));
-    } catch {
-      alert('Failed to delete event.');
-    }
-  };
+  const committeeCount = members.filter(member => member.role === 'committee').length;
+  const unassignedUpcomingCount = upcomingEvents.filter(event => event.assignedCommittee.length === 0).length;
+  const nextEvent = upcomingEvents[0];
+
+  const renderEventPreview = (items: Event[], emptyText: string) => (
+    <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+      {items.length === 0 ? (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-8 text-center">
+          <p className="text-sm text-gray-400">{emptyText}</p>
+        </div>
+      ) : (
+        items.slice(0, 3).map(event => {
+          const dateStr = new Date(event.date).toLocaleDateString('en-AU', {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+          });
+          return (
+            <button
+              key={event._id}
+              type="button"
+              onClick={() => navigate(`/president/events?event=${event._id}`)}
+              className="block w-full rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-left transition hover:border-yellow-200 hover:bg-yellow-50"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-gray-800">{event.title}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[event.status]}`}>
+                      {event.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    📅 {dateStr}{event.location ? ` · 📍 ${event.location}` : ''}
+                  </p>
+                  {event.assignedCommittee.length > 0 && (
+                    <p className="mt-1 text-xs text-gray-400">👥 {event.assignedCommittee.length} assigned</p>
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
 
   const stats = [
     { label: 'Total Events', value: String(events.length), icon: '📅', color: 'bg-blue-50 text-blue-700' },
-    { label: 'Total Members', value: '0', icon: '👥', color: 'bg-green-50 text-green-700' },
-    { label: 'Budget Overview', value: formatCurrency(remainingBudget), icon: '💰', color: 'bg-yellow-50 text-yellow-700', actionPath: '/president/budget' },
+    { label: 'Club Members', value: String(members.length), icon: '👥', color: 'bg-green-50 text-green-700', actionPath: '/president/members' },
+    { label: 'Club Budget Overview', value: formatCurrency(remainingBudget), icon: '💰', color: 'bg-yellow-50 text-yellow-700', actionPath: '/president/budget' },
   ];
 
   return (
     <div className="president-workspace min-h-screen bg-[#201609]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
-        {/* Sidebar */}
-        <aside className="w-56 shrink-0">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">{selectedClub?.clubName || 'Club'} Workspace</p>
-            <nav className="space-y-1">
-              {sidebarLinks.map((link) => (
-                <a
-                  key={link.label}
-                  href="#"
-                  onClick={e => { e.preventDefault(); if (link.path) navigate(link.path); }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
-                    link.label === 'Dashboard'
-                      ? 'bg-yellow-50 text-yellow-800 font-medium'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {link.icon} {link.label}
-                </a>
-              ))}
-            </nav>
-          </div>
-        </aside>
+        <PresidentWorkspaceNav active="Dashboard" />
 
         {/* Main Content */}
         <main className="flex-1">
@@ -148,7 +156,7 @@ export default function PresidentDashboard() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {stats.map((stat) => (
               <div key={stat.label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -172,107 +180,48 @@ export default function PresidentDashboard() {
           </div>
 
           {/* Events */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Events</h2>
-              <button
-                onClick={() => navigate('/president/events/create')}
-                className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-              >
-                + Create New Event
-              </button>
-            </div>
-
-            {loadingEvents ? (
-              <div className="text-center py-8 text-gray-400 text-sm">Loading events...</div>
-            ) : events.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="text-5xl mb-4">📅</div>
-                <p className="text-gray-500 font-medium">No events created yet</p>
-                <p className="text-gray-400 text-sm mt-1">Create your first event to get started.</p>
+          <div className="mb-6 grid gap-5 xl:grid-cols-2">
+            <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">Upcoming Events</h2>
+                  <p className="text-sm text-gray-400">Next events scheduled for this club.</p>
+                </div>
                 <button
-                  onClick={() => navigate('/president/events/create')}
-                  className="mt-4 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                  type="button"
+                  onClick={() => navigate('/president/events?view=upcoming')}
+                  className="text-sm font-semibold text-blue-600 hover:underline"
                 >
-                  Create New Event
+                  View all upcoming →
                 </button>
               </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {events.map(event => {
-                  const dateStr = new Date(event.date).toLocaleDateString('en-AU', {
-                    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                  });
-                  return (
-                    <div key={event._id} className="py-3 flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-800 truncate">{event.title}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[event.status]}`}>
-                            {event.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          📅 {dateStr}{event.location ? ` · 📍 ${event.location}` : ''}
-                          {event.assignedCommittee.length > 0 && ` · 👥 ${event.assignedCommittee.length} assigned`}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteEvent(event._id)}
-                        className="text-xs text-red-400 hover:text-red-600 transition"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Join Requests */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">
-                Join Requests
-                {joinRequests.length > 0 && (
-                  <span className="ml-2 text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                    {joinRequests.length}
-                  </span>
-                )}
-              </h2>
+              {loadingEvents ? (
+                <div className="py-10 text-center text-sm text-gray-400">Loading events...</div>
+              ) : (
+                renderEventPreview(upcomingEvents, 'No upcoming events.')
+              )}
             </div>
-            {joinRequests.length === 0 ? (
-              <div className="text-center py-6">
-                <p className="text-gray-400 text-sm">No pending join requests.</p>
+
+            <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-800">Completed Events</h2>
+                  <p className="text-sm text-gray-400">Past events for reporting and reference.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/president/events?view=completed')}
+                  className="text-sm font-semibold text-blue-600 hover:underline"
+                >
+                  View all completed →
+                </button>
               </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {joinRequests.map(req => (
-                  <div key={req._id} className="py-3 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">{req.userId.name}</p>
-                      <p className="text-xs text-gray-400">{req.userId.email}{req.userId.studentId ? ` · ${req.userId.studentId}` : ''}</p>
-                      {req.message && <p className="text-xs text-gray-500 mt-0.5 italic">"{req.message}"</p>}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleRequest(req._id, 'approved')}
-                        className="text-xs bg-green-100 text-green-700 hover:bg-green-200 font-medium px-3 py-1.5 rounded-lg transition"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRequest(req._id, 'rejected')}
-                        className="text-xs bg-red-100 text-red-600 hover:bg-red-200 font-medium px-3 py-1.5 rounded-lg transition"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+              {loadingEvents ? (
+                <div className="py-10 text-center text-sm text-gray-400">Loading events...</div>
+              ) : (
+                renderEventPreview(completedEvents, 'No completed events yet.')
+              )}
+            </div>
           </div>
 
           {/* Team Overview */}
@@ -286,10 +235,29 @@ export default function PresidentDashboard() {
                 Manage Members →
               </button>
             </div>
-            <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="text-5xl mb-4">👥</div>
-              <p className="text-gray-500 font-medium">No team members yet</p>
-              <p className="text-gray-400 text-sm mt-1">Invite committee members to start collaborating.</p>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Committee</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{committeeCount}</p>
+                <p className="mt-1 text-xs text-gray-500">active committee member{committeeCount !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Needs Assignment</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{unassignedUpcomingCount}</p>
+                <p className="mt-1 text-xs text-gray-500">upcoming event{unassignedUpcomingCount !== 1 ? 's' : ''} without committee</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Next Event</p>
+                <p className="mt-2 truncate text-sm font-bold text-gray-900">{nextEvent?.title || 'None scheduled'}</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  {nextEvent ? new Date(nextEvent.date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Create one in Events'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Completed</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{completedEvents.length}</p>
+                <p className="mt-1 text-xs text-gray-500">past event{completedEvents.length !== 1 ? 's' : ''} recorded</p>
+              </div>
             </div>
           </div>
         </main>

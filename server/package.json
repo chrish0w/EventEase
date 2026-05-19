@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "seed": "node scripts/seedTestData.js",
+    "dev": "npm run seed && nodemon src/index.js",
+    "dev:no-seed": "nodemon src/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

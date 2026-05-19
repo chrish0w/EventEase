@@ -5,6 +5,7 @@ const multer = require('multer');
 const auth = require('../middleware/auth');
 const DisclaimerTemplate = require('../models/DisclaimerTemplate');
 const ClubMembership = require('../models/ClubMembership');
+const Workspace = require('../models/Workspace');
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -62,6 +63,18 @@ async function requirePresident(req, res, clubId) {
   return true;
 }
 
+async function canWriteSafetyTemplate(req, clubId, workspaceId) {
+  const membership = await getMembership(req.user.id, clubId);
+  if (!membership) return false;
+  if (membership.role === 'president') return true;
+  if (!workspaceId || membership.role !== 'committee') return false;
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace || workspace.type !== 'safety') return false;
+  const ownsWorkspace = workspace.owner?.toString() === req.user.id;
+  const collaborates = workspace.collaborators?.some(id => id.toString() === req.user.id);
+  return ownsWorkspace || collaborates;
+}
+
 // List templates for a club (any club member can read)
 router.get('/', auth, async (req, res) => {
   try {
@@ -85,10 +98,14 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, upload.single('file'), async (req, res) => {
   let uploadedFilePath = null;
   try {
-    const { clubId, title, type = 'text', content } = req.body;
-    if (!(await requirePresident(req, res, clubId))) {
+    const { clubId, title, type = 'text', content, workspaceId } = req.body;
+    if (!clubId) {
       if (req.file) safeUnlink(req.file.filename);
-      return;
+      return res.status(400).json({ message: 'clubId is required' });
+    }
+    if (!(await canWriteSafetyTemplate(req, clubId, workspaceId))) {
+      if (req.file) safeUnlink(req.file.filename);
+      return res.status(403).json({ message: 'President or assigned safety workspace member only' });
     }
     if (!title?.trim()) {
       if (req.file) safeUnlink(req.file.filename);

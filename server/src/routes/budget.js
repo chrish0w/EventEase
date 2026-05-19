@@ -6,9 +6,24 @@ const Event = require('../models/Event');
 const Budget = require('../models/Budget');
 const BudgetDraft = require('../models/BudgetDraft');
 const ClubMembership = require('../models/ClubMembership');
+const Workspace = require('../models/Workspace');
 
 async function getMembership(userId, clubId) {
   return ClubMembership.findOne({ userId, clubId });
+}
+
+async function canAccessEventBudget(userId, clubId, eventId, write = false) {
+  const membership = await getMembership(userId, clubId);
+  if (!membership) return { allowed: false, membership: null };
+  if (membership.role === 'president') return { allowed: true, membership };
+
+  const budgetWorkspace = await Workspace.findOne({
+    eventId,
+    type: 'budget',
+    $or: [{ owner: userId }, { collaborators: userId }],
+  });
+
+  return { allowed: Boolean(budgetWorkspace) && (!write || membership.role === 'committee'), membership };
 }
 
 function sanitizeLineItems(lineItems = []) {
@@ -141,9 +156,9 @@ router.get('/event/:eventId', auth, async (req, res) => {
     const { eventId } = req.params;
     if (!clubId) return res.status(400).json({ message: 'clubId is required' });
 
-    const membership = await getMembership(req.user.id, clubId);
-    if (!membership || membership.role !== 'president') {
-      return res.status(403).json({ message: 'President only' });
+    const access = await canAccessEventBudget(req.user.id, clubId, eventId, true);
+    if (!access.allowed) {
+      return res.status(403).json({ message: 'Not authorized to update this event budget' });
     }
 
     const [club, event, budget] = await Promise.all([
@@ -376,9 +391,9 @@ router.put('/event/:eventId', auth, async (req, res) => {
     const { eventId } = req.params;
     if (!clubId) return res.status(400).json({ message: 'clubId is required' });
 
-    const membership = await getMembership(req.user.id, clubId);
-    if (!membership || membership.role !== 'president') {
-      return res.status(403).json({ message: 'President only' });
+    const access = await canAccessEventBudget(req.user.id, clubId, eventId, true);
+    if (!access.allowed) {
+      return res.status(403).json({ message: 'Only the president or assigned budget workspace members can update this event budget' });
     }
 
     const [club, event] = await Promise.all([

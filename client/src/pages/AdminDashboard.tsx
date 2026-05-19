@@ -302,7 +302,7 @@ export default function AdminDashboard() {
                 </form>
               )}
 
-              <div className="divide-y divide-gray-100">
+              <div className="max-h-[30rem] overflow-y-auto pr-2 divide-y divide-gray-100">
                 {filteredClubs.map(club => (
                   <div key={club._id} className="py-4">
                     {editingClubId === club._id ? (
@@ -350,7 +350,7 @@ export default function AdminDashboard() {
                 <h2 className="text-lg font-semibold text-gray-800">Club Users ({filteredMembers.length})</h2>
                 <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Search users, emails, clubs, roles" className="form-input md:w-80" />
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="max-h-[34rem] overflow-y-auto pr-2 divide-y divide-gray-100">
                 {filteredMembers.map(member => (
                   <div key={member._id} className="py-3 flex items-center justify-between gap-4">
                     <div>
@@ -373,8 +373,11 @@ export default function AdminDashboard() {
       </div>
 
       {requestAction && selectedRequest && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+        <div
+          className="!fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => { setRequestAction(null); setRequestMessage(''); }}
+        >
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-gray-900 mb-2">{requestAction === 'reject' ? 'Reject Request' : 'Request More Information'}</h2>
             <p className="text-sm text-gray-500 mb-4">This message will be sent to {selectedRequest.requesterEmail}</p>
             <textarea value={requestMessage} onChange={e => setRequestMessage(e.target.value)} rows={5} className="form-input resize-none" />
