@@ -53,6 +53,7 @@ const emptyClubForm = { name: '', description: '', category: '', officialClubLin
 
 export default function AdminDashboard() {
   const [clubs, setClubs] = useState<Club[]>([]);
+  const [archivedClubs, setArchivedClubs] = useState<Club[]>([]);
   const [organisation, setOrganisation] = useState<OrganisationInfo | null>(null);
   const [members, setMembers] = useState<ClubMember[]>([]);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
@@ -89,12 +90,14 @@ export default function AdminDashboard() {
       api.get('/club-registration-requests'),
       api.get('/auth/users'),
       api.get('/clubs/org/info'),
-    ]).then(([clubsRes, membersRes, requestsRes, usersRes, orgRes]) => {
+      api.get('/clubs/org/archived'),
+    ]).then(([clubsRes, membersRes, requestsRes, usersRes, orgRes, archivedRes]) => {
       setClubs(clubsRes.data);
       setMembers(membersRes.data);
       setRequests(requestsRes.data);
       setAllUsers(usersRes.data);
       setOrganisation(orgRes.data);
+      setArchivedClubs(archivedRes.data);
       if (!selectedRequestId && requestsRes.data.length > 0) setSelectedRequestId(requestsRes.data[0]._id);
     }).catch(() => {}).finally(() => setLoading(false));
   };
@@ -168,6 +171,27 @@ export default function AdminDashboard() {
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       alert(msg || 'Failed to assign president');
+    }
+  };
+
+  const handleArchiveClub = async (clubId: string, clubName: string) => {
+    if (!confirm(`Archive ${clubName}? Members lose access until it is restored.`)) return;
+    try {
+      await api.delete(`/clubs/${clubId}`);
+      fetchData();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      alert(msg || 'Failed to archive club');
+    }
+  };
+
+  const handleRestoreClub = async (clubId: string) => {
+    try {
+      await api.post(`/clubs/${clubId}/restore`);
+      fetchData();
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      alert(msg || 'Failed to restore club');
     }
   };
 
@@ -324,7 +348,10 @@ export default function AdminDashboard() {
                             <p className="text-sm font-semibold text-gray-800">{club.name}</p>
                             <p className="text-xs text-gray-400">{club.category || 'No category'}{club.description ? ` · ${club.description}` : ''}</p>
                           </div>
-                          <button onClick={() => { setEditingClubId(club._id); setEditForm({ name: club.name, description: club.description || '', category: club.category || '', officialClubLink: club.officialClubLink || '', logoUrl: club.logoUrl || '' }); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg">Edit</button>
+                          <div className="flex gap-2 shrink-0">
+                            <button onClick={() => { setEditingClubId(club._id); setEditForm({ name: club.name, description: club.description || '', category: club.category || '', officialClubLink: club.officialClubLink || '', logoUrl: club.logoUrl || '' }); }} className="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg">Edit</button>
+                            <button onClick={() => handleArchiveClub(club._id, club.name)} className="text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100">Archive</button>
+                          </div>
                         </div>
                         <PresidentAssignment
                           clubId={club._id}
@@ -344,6 +371,23 @@ export default function AdminDashboard() {
                 ))}
               </div>
             </section>
+
+            {archivedClubs.length > 0 && (
+              <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-semibold text-gray-800 mb-5">Archived Clubs ({archivedClubs.length})</h2>
+                <div className="divide-y divide-gray-100">
+                  {archivedClubs.map(club => (
+                    <div key={club._id} className="py-3 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{club.name}</p>
+                        <p className="text-xs text-gray-400">{club.category || 'No category'}{club.description ? ` · ${club.description}` : ''}</p>
+                      </div>
+                      <button onClick={() => handleRestoreClub(club._id)} className="text-xs bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 shrink-0">Restore</button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
