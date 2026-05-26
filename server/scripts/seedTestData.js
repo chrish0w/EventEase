@@ -18,8 +18,8 @@ const BudgetDraft = require('../src/models/BudgetDraft');
 const Workspace = require('../src/models/Workspace');
 const Task = require('../src/models/Task');
 
-const PASSWORD = 'Password123!';
-const SUPER_ADMIN_PASSWORD = 'SuperAdmin@2026';
+const PASSWORD = '123456';
+const SUPER_ADMIN_PASSWORD = '123456';
 const ORG_NAME = 'University of Melbourne';
 const CLUB_FIXTURES = [
   {
