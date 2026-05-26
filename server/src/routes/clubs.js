@@ -18,7 +18,7 @@ async function getAdminOrgId(userId) {
 // List all clubs (filtered by admin's org if admin)
 router.get('/', auth, async (req, res) => {
   try {
-    let filter = {};
+    let filter = { archivedAt: null };
     if (req.user.role === 'admin') {
       const orgId = await getAdminOrgId(req.user.id);
       if (!orgId) return res.status(403).json({ message: 'No organisation assigned' });
@@ -35,8 +35,8 @@ router.get('/', auth, async (req, res) => {
 router.get('/my', auth, async (req, res) => {
   try {
     const memberships = await ClubMembership.find({ userId: req.user.id })
-      .populate('clubId', 'name description category logoUrl orgId');
-    res.json(memberships);
+      .populate({ path: 'clubId', select: 'name description category logoUrl orgId', match: { archivedAt: null } });
+    res.json(memberships.filter(m => m.clubId));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -56,7 +56,7 @@ router.get('/browse', auth, async (req, res) => {
         await user.save();
       }
     }
-    const filter = {};
+    const filter = { archivedAt: null };
     if (orgId === 'mine') {
       if (!organisationId) return res.status(400).json({ message: 'No organisation selected' });
       filter.orgId = organisationId;
@@ -87,7 +87,7 @@ router.get('/browse', auth, async (req, res) => {
 router.get('/following', auth, async (req, res) => {
   try {
     const follows = await ClubFollow.find({ userId: req.user.id })
-      .populate({ path: 'clubId', populate: { path: 'orgId', select: 'name' } })
+      .populate({ path: 'clubId', match: { archivedAt: null }, populate: { path: 'orgId', select: 'name' } })
       .sort({ createdAt: -1 });
     res.json(follows.filter(f => f.clubId).map(f => ({
       _id: f._id,
@@ -101,7 +101,7 @@ router.get('/following', auth, async (req, res) => {
 router.get('/:id/detail', auth, async (req, res) => {
   try {
     const club = await Club.findById(req.params.id).populate('orgId', 'name description');
-    if (!club) return res.status(404).json({ message: 'Club not found' });
+    if (!club || club.archivedAt) return res.status(404).json({ message: 'Club not found' });
     const [follow, membership, followers, events, rsvps] = await Promise.all([
       ClubFollow.findOne({ userId: req.user.id, clubId: club._id }),
       ClubMembership.findOne({ userId: req.user.id, clubId: club._id }),
@@ -230,13 +230,64 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
+// List archived clubs in the admin's organisation (admin only)
+router.get('/org/archived', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+    const orgId = await getAdminOrgId(req.user.id);
+    if (!orgId) return res.status(403).json({ message: 'No organisation assigned' });
+    const clubs = await Club.find({ orgId, archivedAt: { $ne: null } })
+      .populate('createdBy', 'name email')
+      .sort({ archivedAt: -1 });
+    res.json(clubs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Archive (soft delete) a club (admin only, must own the club's org)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+    const orgId = await getAdminOrgId(req.user.id);
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: 'Club not found' });
+    if (!orgId || club.orgId.toString() !== orgId.toString())
+      return res.status(403).json({ message: 'Not your organisation' });
+    if (club.archivedAt) return res.status(400).json({ message: 'Club is already archived' });
+    club.archivedAt = new Date();
+    await club.save();
+    res.json({ message: 'Club archived' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Restore an archived club (admin only, must own the club's org)
+router.post('/:id/restore', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+    const orgId = await getAdminOrgId(req.user.id);
+    const club = await Club.findById(req.params.id);
+    if (!club) return res.status(404).json({ message: 'Club not found' });
+    if (!orgId || club.orgId.toString() !== orgId.toString())
+      return res.status(403).json({ message: 'Not your organisation' });
+    if (!club.archivedAt) return res.status(400).json({ message: 'Club is not archived' });
+    club.archivedAt = null;
+    await club.save();
+    res.json({ message: 'Club restored' });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 // Org admin overview of all users in clubs in their organisation
 router.get('/org/users', auth, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
     const orgId = await getAdminOrgId(req.user.id);
     if (!orgId) return res.status(403).json({ message: 'No organisation assigned' });
-    const clubs = await Club.find({ orgId }, '_id name');
+    const clubs = await Club.find({ orgId, archivedAt: null }, '_id name');
     const clubIds = clubs.map(club => club._id);
     const memberships = await ClubMembership.find({ clubId: { $in: clubIds } })
       .populate('userId', 'name email studentId')

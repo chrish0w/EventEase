@@ -209,7 +209,7 @@ router.get('/browse/all', auth, async (req, res) => {
         await user.save();
       }
     }
-    const clubFilter = {};
+    const clubFilter = { archivedAt: null };
     if (orgId === 'mine') {
       if (!organisationId) return res.status(400).json({ message: 'No organisation selected' });
       clubFilter.orgId = organisationId;
