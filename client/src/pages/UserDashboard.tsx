@@ -146,7 +146,14 @@ export default function UserDashboard() {
     [rsvps]
   );
   const pastRsvps = useMemo(() => rsvps.filter(item => item.event && new Date(item.event.date) < new Date()), [rsvps]);
-  const suggestedEvents = eventsWithRsvp.filter(event => !event.rsvped && new Date(event.date) >= new Date()).slice(0, 4);
+  const suggestedEvents = useMemo(() => {
+    const preferredCategories = new Set(rsvps.map(item => item.event?.category).filter(Boolean));
+    const upcoming = eventsWithRsvp.filter(event => !event.rsvped && new Date(event.date) >= new Date());
+    if (preferredCategories.size === 0) return upcoming.slice(0, 4);
+    const matched = upcoming.filter(event => preferredCategories.has(event.category));
+    const others = upcoming.filter(event => !preferredCategories.has(event.category));
+    return [...matched, ...others].slice(0, 4);
+  }, [eventsWithRsvp, rsvps]);
 
   const filteredClubs = clubs.filter(club => {
     const q = clubSearch.toLowerCase();

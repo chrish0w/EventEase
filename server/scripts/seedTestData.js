@@ -100,8 +100,183 @@ const CLUB_FIXTURES = [
       ['Zoe Commerce Member', 'member3@commerce.test', 'M50005'],
     ],
   },
+  // --- New UniMelb clubs ---
+  {
+    name: 'UniMelb Medical Students Society',
+    category: 'Health',
+    description: 'Connecting medical students through health forums, clinical skill workshops, and wellbeing events.',
+    president: ['Marcus Med President', 'president@medclub.test', 'P60001'],
+    committee: [
+      ['Diana Med Committee', 'committee@medclub.test', 'C60002', 'general'],
+      ['Felix Med Finance', 'finance@medclub.test', 'C60003', 'finance'],
+    ],
+    members: [
+      ['Hannah Med Member', 'member@medclub.test', 'M60003'],
+      ['Ivan Med Member', 'member2@medclub.test', 'M60004'],
+      ['Julia Med Member', 'member3@medclub.test', 'M60005'],
+    ],
+  },
+  {
+    name: 'UniMelb Law Society',
+    category: 'Academic',
+    description: 'Supporting law students with mooting competitions, networking events, and career workshops.',
+    president: ['Nathan Law President', 'president@lawsociety.test', 'P70001'],
+    committee: [
+      ['Olivia Law Committee', 'committee@lawsociety.test', 'C70002', 'general'],
+      ['Patrick Law Logistics', 'logistics@lawsociety.test', 'C70003', 'logistics'],
+    ],
+    members: [
+      ['Queenie Law Member', 'member@lawsociety.test', 'M70003'],
+      ['Ryan Law Member', 'member2@lawsociety.test', 'M70004'],
+      ['Stella Law Member', 'member3@lawsociety.test', 'M70005'],
+    ],
+  },
+  {
+    name: 'Melbourne Environment Collective',
+    category: 'Environment',
+    description: 'Driving sustainability initiatives, campus clean-ups, and environmental awareness campaigns.',
+    president: ['Talia Env President', 'president@envclub.test', 'P80001'],
+    committee: [
+      ['Umar Env Committee', 'committee@envclub.test', 'C80002', 'general'],
+      ['Violet Env Logistics', 'logistics@envclub.test', 'C80003', 'logistics'],
+    ],
+    members: [
+      ['Will Env Member', 'member@envclub.test', 'M80003'],
+      ['Xena Env Member', 'member2@envclub.test', 'M80004'],
+      ['Yuki Env Member', 'member3@envclub.test', 'M80005'],
+    ],
+  },
+  {
+    name: 'Melbourne Gaming Society',
+    category: 'Gaming',
+    description: 'Bringing gamers together through tournaments, LAN events, and casual gaming sessions.',
+    president: ['Zara Gaming President', 'president@gamingclub.test', 'P90001'],
+    committee: [
+      ['Aaron Gaming Committee', 'committee@gamingclub.test', 'C90002', 'general'],
+      ['Bella Gaming Finance', 'finance@gamingclub.test', 'C90003', 'finance'],
+    ],
+    members: [
+      ['Carl Gaming Member', 'member@gamingclub.test', 'M90003'],
+      ['Demi Gaming Member', 'member2@gamingclub.test', 'M90004'],
+      ['Eli Gaming Member', 'member3@gamingclub.test', 'M90005'],
+    ],
+  },
+  {
+    name: 'Melbourne Photography Club',
+    category: 'Photography',
+    description: 'A creative community for photography enthusiasts to share, learn, and exhibit their work.',
+    president: ['Fiona Photo President', 'president@photoclub.test', 'P100001'],
+    committee: [
+      ['George Photo Committee', 'committee@photoclub.test', 'C100002', 'general'],
+      ['Holly Photo Logistics', 'logistics@photoclub.test', 'C100003', 'logistics'],
+    ],
+    members: [
+      ['Igor Photo Member', 'member@photoclub.test', 'M100003'],
+      ['Jade Photo Member', 'member2@photoclub.test', 'M100004'],
+      ['Karl Photo Member', 'member3@photoclub.test', 'M100005'],
+    ],
+  },
 ];
+
+const MONASH_CLUB_FIXTURES = [
+  {
+    name: 'Monash Film Club',
+    category: 'Arts',
+    description: 'Celebrating cinema through screenings, short filmmaking workshops, and creative discussions.',
+    president: ['Leo Film President', 'president@monashfilm.test', 'MP10001'],
+    committee: [
+      ['Maya Film Committee', 'committee@monashfilm.test', 'MC10002', 'general'],
+      ['Nick Film Logistics', 'logistics@monashfilm.test', 'MC10003', 'logistics'],
+    ],
+    members: [
+      ['Olivia Film Member', 'member@monashfilm.test', 'MM10003'],
+      ['Pete Film Member', 'member2@monashfilm.test', 'MM10004'],
+      ['Quinn Film Member', 'member3@monashfilm.test', 'MM10005'],
+    ],
+  },
+  {
+    name: 'Monash Engineering Society',
+    category: 'Engineering',
+    description: 'Connecting engineering students with industry professionals, projects, and design competitions.',
+    president: ['Rachel Eng President', 'president@monasheng.test', 'MP20001'],
+    committee: [
+      ['Sam Eng Committee', 'committee@monasheng.test', 'MC20002', 'general'],
+      ['Tina Eng Finance', 'finance@monasheng.test', 'MC20003', 'finance'],
+    ],
+    members: [
+      ['Uma Eng Member', 'member@monasheng.test', 'MM20003'],
+      ['Victor Eng Member', 'member2@monasheng.test', 'MM20004'],
+      ['Wendy Eng Member', 'member3@monasheng.test', 'MM20005'],
+    ],
+  },
+  {
+    name: 'Monash Business Society',
+    category: 'Business',
+    description: 'Empowering Monash business students through networking nights, case competitions, and speaker events.',
+    president: ['Xavier Biz President', 'president@monashbiz.test', 'MP30001'],
+    committee: [
+      ['Yasmin Biz Committee', 'committee@monashbiz.test', 'MC30002', 'general'],
+      ['Zack Biz Finance', 'finance@monashbiz.test', 'MC30003', 'finance'],
+    ],
+    members: [
+      ['Alice Biz Member', 'member@monashbiz.test', 'MM30003'],
+      ['Bob Biz Member', 'member2@monashbiz.test', 'MM30004'],
+      ['Clara Biz Member', 'member3@monashbiz.test', 'MM30005'],
+    ],
+  },
+  {
+    name: 'Monash Science Society',
+    category: 'Science',
+    description: 'Fostering scientific curiosity through experiments, research showcases, and science communication events.',
+    president: ['Daniel Sci President', 'president@monashsci.test', 'MP40001'],
+    committee: [
+      ['Eva Sci Committee', 'committee@monashsci.test', 'MC40002', 'general'],
+      ['Frank Sci Logistics', 'logistics@monashsci.test', 'MC40003', 'logistics'],
+    ],
+    members: [
+      ['Grace Sci Member', 'member@monashsci.test', 'MM40003'],
+      ['Harry Sci Member', 'member2@monashsci.test', 'MM40004'],
+      ['Iris Sci Member', 'member3@monashsci.test', 'MM40005'],
+    ],
+  },
+  {
+    name: 'Monash Coding Club',
+    category: 'Technology',
+    description: 'Building coding skills through hackathons, workshops, and collaborative software projects.',
+    president: ['Jack Code President', 'president@monashcode.test', 'MP50001'],
+    committee: [
+      ['Karen Code Committee', 'committee@monashcode.test', 'MC50002', 'general'],
+      ['Liam Code Finance', 'finance@monashcode.test', 'MC50003', 'finance'],
+    ],
+    members: [
+      ['Mona Code Member', 'member@monashcode.test', 'MM50003'],
+      ['Ned Code Member', 'member2@monashcode.test', 'MM50004'],
+      ['Ora Code Member', 'member3@monashcode.test', 'MM50005'],
+    ],
+  },
+  {
+    name: 'Monash International Students Club',
+    category: 'Cultural',
+    description: 'Welcoming international students with cultural festivals, language exchanges, and community support.',
+    president: ['Paul Intl President', 'president@monashintl.test', 'MP60001'],
+    committee: [
+      ['Qian Intl Committee', 'committee@monashintl.test', 'MC60002', 'general'],
+      ['Rosa Intl Logistics', 'logistics@monashintl.test', 'MC60003', 'logistics'],
+    ],
+    members: [
+      ['Sana Intl Member', 'member@monashintl.test', 'MM60003'],
+      ['Tao Intl Member', 'member2@monashintl.test', 'MM60004'],
+      ['Uma Intl Member', 'member3@monashintl.test', 'MM60005'],
+    ],
+  },
+];
+
 const FIXTURE_USER_EMAILS = CLUB_FIXTURES.flatMap(club => [
+  club.president[1],
+  ...club.committee.map(member => member[1]),
+  ...club.members.map(member => member[1]),
+]);
+const MONASH_FIXTURE_USER_EMAILS = MONASH_CLUB_FIXTURES.flatMap(club => [
   club.president[1],
   ...club.committee.map(member => member[1]),
   ...club.members.map(member => member[1]),
@@ -120,9 +295,11 @@ const SEED_USER_EMAILS = [
   'superadmin@eventease.com',
   'orgadmin@unimelb.test',
   'orgadmin2@unimelb.test',
+  'orgadmin@monash.test',
   'requester@clubs.test',
   'norole@student.test',
   ...FIXTURE_USER_EMAILS,
+  ...MONASH_FIXTURE_USER_EMAILS,
 ];
 const SEED_INVITE_EMAILS = ['invitedpresident@artsclub.test'];
 const SEED_ORG_NAMES = [
@@ -134,9 +311,9 @@ const SEED_ORG_NAMES = [
 ];
 const SEED_CLUB_NAMES = [
   ...CLUB_FIXTURES.map(club => club.name),
+  ...MONASH_CLUB_FIXTURES.map(club => club.name),
   'Biomedical Students Club',
   'Robotics Builders Club',
-  'Monash Film Club',
 ];
 
 const proofFile = {
@@ -198,7 +375,7 @@ function daysFromNow(days, hour = 18) {
 }
 
 function eventTemplatesForClub(clubFixture) {
-  const prefix = clubFixture.name.replace(/^Melbourne\s+/, '');
+  const prefix = clubFixture.name.replace(/^(Melbourne|UniMelb|Monash|Campus)\s+/, '');
   return [
     {
       title: `${prefix} Welcome Night`,
@@ -288,6 +465,47 @@ async function seedEventsForClub({ clubFixture, club, president, committeeMember
       createdBy: president._id,
     });
   }
+}
+
+async function seedClubsForOrg({ fixtures, org, orgAdmin }) {
+  const seededClubs = {};
+  for (const clubFixture of fixtures) {
+    const club = await upsertClub({
+      name: clubFixture.name,
+      description: clubFixture.description,
+      category: clubFixture.category,
+      officialClubLink: `https://example.com/${clubFixture.name.toLowerCase().replace(/\s+/g, '-')}`,
+      orgId: org._id,
+      createdBy: orgAdmin._id,
+    });
+    seededClubs[clubFixture.name] = club;
+
+    const [presidentName, presidentEmail, presidentStudentId] = clubFixture.president;
+    const president = await upsertUser({
+      name: presidentName,
+      email: presidentEmail,
+      role: 'user',
+      studentId: presidentStudentId,
+      organisationId: org._id,
+    });
+    await setMembership({ userId: president._id, clubId: club._id, role: 'president' });
+
+    const committeeMembers = [];
+    for (const [name, email, studentId, committeeRole] of clubFixture.committee) {
+      const committeeMember = await upsertUser({ name, email, role: 'user', studentId, organisationId: org._id });
+      committeeMember.committeeRole = committeeRole;
+      committeeMembers.push(committeeMember);
+      await setMembership({ userId: committeeMember._id, clubId: club._id, role: 'committee', committeeRole });
+    }
+
+    for (const [name, email, studentId] of clubFixture.members) {
+      const member = await upsertUser({ name, email, role: 'user', studentId, organisationId: org._id });
+      await setMembership({ userId: member._id, clubId: club._id, role: 'user' });
+    }
+
+    await seedEventsForClub({ clubFixture, club, president, committeeMembers });
+  }
+  return seededClubs;
 }
 
 async function upsertClubRequest({ status, orgId, clubName, requesterFullName, requesterEmail, requesterRole, presidentFullName, presidentEmail }) {
@@ -443,6 +661,7 @@ async function run() {
     role: 'super_admin',
   });
 
+  // --- University of Melbourne ---
   const melbourne = await upsertOrg({
     name: ORG_NAME,
     description: 'Seeded university organisation for club onboarding tests.',
@@ -459,50 +678,14 @@ async function run() {
   const requester = await upsertUser({ name: 'Riley Requester', email: 'requester@clubs.test', role: 'user', studentId: 'R10004', organisationId: melbourne._id });
   await upsertUser({ name: 'Avery No Role', email: 'norole@student.test', role: 'user', studentId: 'N10005', organisationId: melbourne._id });
 
-  const seededClubs = {};
-  for (const clubFixture of CLUB_FIXTURES) {
-    const club = await upsertClub({
-      name: clubFixture.name,
-      description: clubFixture.description,
-      category: clubFixture.category,
-      officialClubLink: `https://example.com/${clubFixture.name.toLowerCase().replace(/\s+/g, '-')}`,
-      orgId: melbourne._id,
-      createdBy: orgAdmin._id,
-    });
-    seededClubs[clubFixture.name] = club;
-
-    const [presidentName, presidentEmail, presidentStudentId] = clubFixture.president;
-    const president = await upsertUser({
-      name: presidentName,
-      email: presidentEmail,
-      role: 'user',
-      studentId: presidentStudentId,
-      organisationId: melbourne._id,
-    });
-    await setMembership({ userId: president._id, clubId: club._id, role: 'president' });
-
-    const committeeMembers = [];
-    for (const [name, email, studentId, committeeRole] of clubFixture.committee) {
-      const committeeMember = await upsertUser({ name, email, role: 'user', studentId, organisationId: melbourne._id });
-      committeeMember.committeeRole = committeeRole;
-      committeeMembers.push(committeeMember);
-      await setMembership({ userId: committeeMember._id, clubId: club._id, role: 'committee', committeeRole });
-    }
-
-    for (const [name, email, studentId] of clubFixture.members) {
-      const member = await upsertUser({ name, email, role: 'user', studentId, organisationId: melbourne._id });
-      await setMembership({ userId: member._id, clubId: club._id, role: 'user' });
-    }
-
-    await seedEventsForClub({ clubFixture, club, president, committeeMembers });
-  }
+  const seededMelbClubs = await seedClubsForOrg({ fixtures: CLUB_FIXTURES, org: melbourne, orgAdmin });
 
   await ClubInvitation.findOneAndUpdate(
-    { email: 'invitedpresident@artsclub.test', clubId: seededClubs['Melbourne Arts Collective']._id, role: 'president', status: 'pending' },
+    { email: 'invitedpresident@artsclub.test', clubId: seededMelbClubs['Melbourne Arts Collective']._id, role: 'president', status: 'pending' },
     {
       email: 'invitedpresident@artsclub.test',
       name: 'Jordan Invited President',
-      clubId: seededClubs['Melbourne Arts Collective']._id,
+      clubId: seededMelbClubs['Melbourne Arts Collective']._id,
       role: 'president',
       token: crypto.randomBytes(16).toString('hex'),
       status: 'pending',
@@ -531,6 +714,22 @@ async function run() {
     presidentFullName: 'Morgan Robotics',
     presidentEmail: 'robotics.requester@clubs.test',
   });
+
+  // --- Monash University ---
+  const monash = await upsertOrg({
+    name: 'Monash University',
+    description: 'Seeded Monash University organisation for multi-org testing.',
+    type: 'University',
+    officialWebsite: 'https://www.monash.edu',
+    officialEmail: 'clubs@monash.example',
+    createdBy: superAdmin._id,
+  });
+  const monashOrgAdmin = await upsertUser({ name: 'Morgan Monash Admin', email: 'orgadmin@monash.test', role: 'admin', organisationId: monash._id });
+  await OrgAdminAssignment.findOneAndUpdate({ userId: monashOrgAdmin._id }, { userId: monashOrgAdmin._id, orgId: monash._id }, { upsert: true, new: true });
+
+  await seedClubsForOrg({ fixtures: MONASH_CLUB_FIXTURES, org: monash, orgAdmin: monashOrgAdmin });
+
+  // --- Org registration requests ---
   await upsertOrgRequest({
     status: 'pending_review',
     organisationName: 'Victoria Student Association',
@@ -548,9 +747,15 @@ async function run() {
   console.table([
     { role: 'Super Admin', email: 'superadmin@eventease.com', password: SUPER_ADMIN_PASSWORD, notes: 'Platform admin' },
     { role: 'Org Admin', email: 'orgadmin@unimelb.test', password: PASSWORD, notes: 'Manages University of Melbourne' },
-    { role: 'Org Admin', email: 'orgadmin2@unimelb.test', password: PASSWORD, notes: 'Second admin for same organisation' },
+    { role: 'Org Admin', email: 'orgadmin2@unimelb.test', password: PASSWORD, notes: 'Second admin for UniMelb' },
+    { role: 'Org Admin', email: 'orgadmin@monash.test', password: PASSWORD, notes: 'Manages Monash University' },
     ...CLUB_FIXTURES.flatMap(club => [
-      { role: 'President', email: club.president[1], password: PASSWORD, notes: `President of ${club.name}` },
+      { role: 'President', email: club.president[1], password: PASSWORD, notes: `President of ${club.name} (UniMelb)` },
+      ...club.committee.map(member => ({ role: `Committee (${member[3]})`, email: member[1], password: PASSWORD, notes: `Committee in ${club.name}` })),
+      ...club.members.map(member => ({ role: 'Member', email: member[1], password: PASSWORD, notes: `Member in ${club.name}` })),
+    ]),
+    ...MONASH_CLUB_FIXTURES.flatMap(club => [
+      { role: 'President', email: club.president[1], password: PASSWORD, notes: `President of ${club.name} (Monash)` },
       ...club.committee.map(member => ({ role: `Committee (${member[3]})`, email: member[1], password: PASSWORD, notes: `Committee in ${club.name}` })),
       ...club.members.map(member => ({ role: 'Member', email: member[1], password: PASSWORD, notes: `Member in ${club.name}` })),
     ]),
