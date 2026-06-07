@@ -1,71 +1,183 @@
 # EventEase
 
-A centralised event management platform for Monash University student clubs.
+EventEase is a full-stack web application for centralised event management in university club environments. The system supports role-based workflows for platform administrators, organisation administrators, club presidents, committee members, and student members.
+
+## Features
+
+- Public home, about, contact, organisation registration, club registration, sign-up, and sign-in pages
+- Role-based dashboards for super admin, organisation admin, president, committee, and member users
+- Organisation registration review and organisation management
+- Club registration review, club management, membership management, and president assignment
+- Event creation, editing, deletion, publishing, browsing, and RSVP workflows
+- Committee workspace assignment with task tracking and close-out requests
+- Budget planning and reporting for club and event-level budgets
+- Safety/disclaimer templates with event-facing safety information
+
+## Technology Stack
+
+- Frontend: React 19, TypeScript, Vite, React Router, Axios, Tailwind CSS
+- Backend: Node.js, Express, MongoDB, Mongoose
+- Authentication: JSON Web Token (JWT) authentication and bcrypt password hashing
 
 ## Prerequisites
 
-- Node.js (v18+)
-- MongoDB (running locally on port 27017)
+- Node.js 18 or later
+- npm
+- MongoDB running locally on port `27017`
 
-## Getting Started
+## Environment Setup
 
-### 1. Start MongoDB
+Create a backend environment file:
 
-Make sure MongoDB is running on your machine before starting the backend.
+```bash
+cd server
+cp .env.example .env
+```
 
-### 2. Start the Backend
+The default local configuration is:
+
+```text
+MONGO_URI=mongodb://localhost:27017/eventease
+JWT_SECRET=your_jwt_secret_here
+PORT=5000
+```
+
+For local development, replace `JWT_SECRET` with any non-empty development secret.
+
+## Install Dependencies
+
+Install backend dependencies:
 
 ```bash
 cd server
 npm install
-npm run dev
 ```
 
-Runs on `http://localhost:5000`
-
-### 3. Start the Frontend
-
-Open a new terminal:
+Install frontend dependencies:
 
 ```bash
 cd client
 npm install
-npm run dev
 ```
 
-Runs on `http://localhost:5173`
+## Running the Application
 
-## Environment Variables
+Start MongoDB first. On macOS with Homebrew, this is commonly:
 
-The backend requires a `.env` file in the `server/` directory:
-
-```
-MONGO_URI=mongodb://localhost:27017/eventease
-JWT_SECRET=eventease_secret_key_2026
-PORT=5000
+```bash
+brew services start mongodb-community
 ```
 
-## Seed Admin Account
+Alternatively, run MongoDB using your local MongoDB installation method.
 
-Run this once after starting the backend to create the Monash admin account:
+Start the backend:
 
 ```bash
 cd server
-node scripts/createAdmin.js
+npm run dev
 ```
 
-| Field | Value |
-|-------|-------|
-| Email | `admin@monash.edu` |
-| Password | `Admin@2026` |
+`npm run dev` seeds the local MongoDB database, then starts the Express API with Nodemon. The backend runs at:
 
-The admin account can create clubs and assign presidents. It only needs to be created once.
+```text
+http://localhost:5000
+```
 
-## Roles
+Start the frontend in a second terminal:
 
-| Role | Description |
-|------|-------------|
-| `admin` | Monash administrator — creates clubs and assigns presidents |
-| `president` | Assigned by admin — manages a club, approves join requests, assigns committee roles |
-| `committee` | Assigned by president — manages assigned events with role-specific responsibilities |
-| `user` | Self-registered — applies to join clubs and RSVPs to events |
+```bash
+cd client
+npm run dev
+```
+
+The frontend runs at:
+
+```text
+http://localhost:5173
+```
+
+Open `http://localhost:5173` in a browser to use EventEase.
+
+## Seed Data and Test Accounts
+
+The backend seed script is located at:
+
+```text
+server/scripts/seedTestData.js
+```
+
+The seed script creates the core demonstration database records required to run and assess the project, including organisations, clubs, users, memberships, events, budgets, workspaces, tasks, RSVPs, and registration requests.
+
+Useful seeded accounts:
+
+| Role | Email | Password | Notes |
+| --- | --- | --- | --- |
+| Super Admin | `superadmin@eventease.com` | `123456` | Platform administrator |
+| Organisation Admin | `orgadmin@unimelb.test` | `123456` | Manages University of Melbourne clubs |
+| Organisation Admin | `orgadmin2@unimelb.test` | `123456` | Second organisation admin |
+| President | `president@codingclub.test` | `123456` | President of Melbourne Coding Society |
+| Committee | `committee@codingclub.test` | `123456` | Committee member in Melbourne Coding Society |
+| Committee | `finance@codingclub.test` | `123456` | Finance committee member |
+| Member | `member@codingclub.test` | `123456` | Regular student member |
+| Requester | `requester@clubs.test` | `123456` | Submitted a seeded club request |
+
+The seed script also prints the full set of seeded users to the terminal after it runs.
+
+## Database Export for Submission
+
+This repository includes the seed script required to recreate the development database. For university archive submission, a MongoDB dump can also be included in the ZIP file.
+
+With MongoDB running and the seed data loaded, export the database from the repository root:
+
+```bash
+mkdir -p database-dump
+mongodump --db eventease --out database-dump
+```
+
+This creates:
+
+```text
+database-dump/eventease/
+```
+
+Include the `database-dump/` folder in the final ZIP submission if required by the submission instructions.
+
+To restore the dump on another machine:
+
+```bash
+mongorestore --db eventease database-dump/eventease
+```
+
+## Build Checks
+
+Frontend production build:
+
+```bash
+cd client
+npm run build
+```
+
+Backend start without reseeding:
+
+```bash
+cd server
+npm run dev:no-seed
+```
+
+## Recommended ZIP Submission Contents
+
+For Moodle submission, include the project source files and database reconstruction material. The ZIP should include:
+
+- `client/`
+- `server/`
+- root configuration files, including `.gitignore` and `README.md`
+- `database-dump/`, if a MongoDB dump has been exported
+
+The ZIP should not include:
+
+- `node_modules/`
+- `.git/`
+- `.env`
+- generated build output such as `dist/`
+- report-writing drafts, generated report outputs, or other non-source documentation
+

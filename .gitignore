@@ -4,3 +4,8 @@ dist/
 uploads/
 *.log
 .DS_Store
+
+# Local report-generation artifacts used outside the application source.
+/docs/
+/outputs/
+/scripts/
